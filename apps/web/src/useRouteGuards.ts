@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 import type { CurrentUser } from "@killingit/shared";
+import { hasAuthCallbackParams } from "./auth/callback";
 import {
   navigateToPage,
   pageForPath,
@@ -11,6 +12,8 @@ import { surveyGate, type SurveyGate } from "./surveyGate";
 export interface RouteGuardOptions {
   /** Whether the athlete is signed in. */
   signedIn: boolean;
+  /** Whether the auth session is still initialising. */
+  authLoading: boolean;
   /** Whether the signed-in account is still loading. */
   loadingUser: boolean;
   /** The signed-in account, or null before it loads. */
@@ -36,6 +39,7 @@ export interface RouteGuardState {
  */
 export function useRouteGuards({
   signedIn,
+  authLoading,
   loadingUser,
   user,
   isAdmin,
@@ -54,12 +58,16 @@ export function useRouteGuards({
   });
 
   // Every page has a canonical URL. "/" and any unknown path resolve to the
-  // coach page, replacing the entry so the back button stays useful.
+  // coach page, replacing the entry so the back button stays useful. An Auth0
+  // redirect carries the sign-in response in the query string and the SDK
+  // reads it in its own effect after this one, so the URL must keep it while
+  // auth is still initialising. Once auth has settled, a callback the SDK
+  // rejected keeps its error params only until this redirect clears them.
   useEffect(() => {
-    if (matchedPage === null) {
+    if (matchedPage === null && !(authLoading && hasAuthCallbackParams())) {
       navigateToPage("coach", { replace: true });
     }
-  }, [matchedPage]);
+  }, [authLoading, matchedPage]);
 
   // An added or revised question sends the athlete to the survey so they can
   // see what changed and answer it. The gate keeps the admin settings page.

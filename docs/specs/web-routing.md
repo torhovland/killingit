@@ -86,6 +86,13 @@ ternary chain.
   rejected URL, so a rejected calendar visit must not widen it.
 - Signing in returns to the path the visitor requested, because the Auth0
   adapter already asks Auth0 to return to `window.location.pathname`.
+- An Auth0 callback URL (`/?code=…&state=…`, or `error` in place of `code`) is
+  left exactly as the SDK received it while the auth session is initialising.
+  The route guards run before the SDK's initialisation effect, so rewriting `/`
+  to `/coach` would drop the query and the SDK would never exchange the code;
+  on success the SDK clears the params itself by replacing the URL with the
+  saved return path. If the SDK rejects the callback, the guard canonicalises
+  the URL once auth has settled, so the failed params do not linger.
 
 ## Acceptance criteria
 
@@ -98,8 +105,10 @@ ternary chain.
    `/admin`.
 4. Pure tests cover the path mapping, label lookup, the survey gate (including
    the panel width of the page on screen) and the calendar's wide panel;
-   `useRouteGuards` unit tests cover the three redirects, and the e2e suite
-   covers a deep link after sign-in, reload and the history buttons.
+   `useRouteGuards` unit tests cover the three redirects, keep an Auth0
+   callback URL intact while auth loads, and canonicalise a rejected callback
+   afterwards; the e2e suite covers a deep link after sign-in, reload and the
+   history buttons.
 5. `bun run typecheck`, `bun run lint`, `bun run format`, `bun run test` and
    `bun run test:e2e` pass.
 

@@ -49,6 +49,7 @@ function AppShell() {
   const surveyRequired = questions !== null && !questions.complete;
   const { page, gate } = useRouteGuards({
     signedIn,
+    authLoading: auth.isLoading,
     loadingUser,
     user,
     isAdmin,
