@@ -22,9 +22,11 @@ function openPath(path: string): void {
   window.location.href = `http://localhost${path}`;
 }
 
-function renderGuards(options: RouteGuardOptions) {
+function renderGuards(
+  options: Omit<RouteGuardOptions, "authLoading"> & { authLoading?: boolean },
+) {
   return renderHook((props: RouteGuardOptions) => useRouteGuards(props), {
-    initialProps: options,
+    initialProps: { authLoading: false, ...options },
   });
 }
 
@@ -60,6 +62,40 @@ describe("useRouteGuards", () => {
 
     expect(result.current.page).toBe("coach");
     expect(window.location.pathname).toBe("/coach");
+  });
+
+  it("keeps an Auth0 callback URL for the SDK to consume", () => {
+    openPath("/?code=abc&state=xyz");
+
+    const { result } = renderGuards({
+      signedIn: false,
+      authLoading: true,
+      loadingUser: false,
+      user: null,
+      isAdmin: false,
+      surveyRequired: false,
+    });
+
+    // The fallback page renders while the SDK handles the callback, but the
+    // query stays put until the SDK has exchanged the code.
+    expect(result.current.page).toBe("coach");
+    expect(window.location.pathname).toBe("/");
+    expect(window.location.search).toBe("?code=abc&state=xyz");
+  });
+
+  it("canonicalises a rejected callback once auth has settled", () => {
+    openPath("/?error=access_denied&state=xyz");
+
+    renderGuards({
+      signedIn: false,
+      loadingUser: false,
+      user: null,
+      isAdmin: false,
+      surveyRequired: false,
+    });
+
+    expect(window.location.pathname).toBe("/coach");
+    expect(window.location.search).toBe("");
   });
 
   it("sends an unanswered survey to the survey page", () => {

@@ -171,6 +171,15 @@ only replaces that module.
   connection the athlete must fix is never a `401` (`garmin_not_connected`,
   `garmin_auth_failed`, `llm_key_invalid`), so the retry never fires for it;
   see `docs/specs/api-errors.md` and ADR 0036.
+- **The router leaves the Auth0 callback URL alone while auth loads.** Auth0
+  returns to the origin root with `code` (or `error`) and `state` in the query
+  string. The route guards run in an `App` effect before the provider's
+  initialisation effect, so the canonical `/` → `/coach` redirect must skip a
+  URL with those params (`hasAuthCallbackParams`) while `auth.isLoading`;
+  otherwise the SDK sees no response, takes its signed-out branch, and the
+  athlete stays on the landing page after a successful sign-in. Once auth has
+  settled, a rejected callback is canonicalised so its params do not linger.
+  See `docs/specs/web-routing.md`.
 - **`useAuth` returns a stable session object.** The adapter wraps each SDK
   callback in `useCallback` and memoizes the returned `AuthState`, so its
   identity changes only when the session does (sign-in state, loading state, or
