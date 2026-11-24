@@ -11,6 +11,7 @@ function filters(overrides: Partial<LlmModelFilters> = {}): LlmModelFilters {
     minAbility: "B",
     minSpeed: "D",
     minCost: "D",
+    nameQuery: "",
     ...overrides,
   };
 }
@@ -116,5 +117,25 @@ describe("ModelFilters", () => {
 
     await user.click(screen.getByLabelText("Include discouraged"));
     expect(changes.at(-1)).toEqual({ showDiscouraged: true });
+  });
+});
+
+describe("model search", () => {
+  it("shows the current search text", () => {
+    renderFilters(filters({ nameQuery: "claude" }));
+
+    expect(screen.getByLabelText("Search models")).toHaveProperty(
+      "value",
+      "claude",
+    );
+  });
+
+  it("reports every character typed as the search text", async () => {
+    const user = userEvent.setup();
+    const changes = renderFilters();
+
+    await user.type(screen.getByLabelText("Search models"), "g");
+
+    expect(changes.at(-1)).toEqual({ nameQuery: "g" });
   });
 });

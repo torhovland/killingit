@@ -1,5 +1,6 @@
 import type { LlmModelGrade } from "@killingit/shared";
 import { llmModelGradeSchema } from "@killingit/shared";
+import { Input } from "../components/Input";
 import { Select } from "../components/Select";
 import type { LlmModelFilters } from "./catalogFilters";
 
@@ -61,6 +62,16 @@ export interface ModelFiltersProps {
 export function ModelFilters({ filters, onChange }: ModelFiltersProps) {
   return (
     <div className="flex flex-wrap items-end gap-3 text-sm">
+      <label className="flex min-w-64 flex-1 flex-col gap-1">
+        <span className="font-medium">Search models</span>
+        <Input
+          type="search"
+          size="sm"
+          placeholder="Part of a model name"
+          value={filters.nameQuery}
+          onChange={(e) => onChange({ nameQuery: e.target.value })}
+        />
+      </label>
       <GradeSelect
         label="Ability at least"
         value={filters.minAbility}
