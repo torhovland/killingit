@@ -23,14 +23,12 @@ describe("abilityGrade", () => {
   };
 
   it("maps score bands to letter grades", () => {
-    expect(abilityGrade({ score: 11.1, categories })).toBe("A+");
-    expect(abilityGrade({ score: 10.5, categories })).toBe("A");
-    expect(abilityGrade({ score: 10.2, categories })).toBe("B");
-    expect(abilityGrade({ score: 10.1, categories })).toBe("C");
-    expect(abilityGrade({ score: 9.8, categories })).toBe("C");
-    expect(abilityGrade({ score: 9.7, categories })).toBe("D");
-    expect(abilityGrade({ score: 9.6, categories })).toBe("D");
-    expect(abilityGrade({ score: 9.5, categories })).toBe("E");
+    expect(abilityGrade({ score: 10.6, categories })).toBe("A+");
+    expect(abilityGrade({ score: 10.2, categories })).toBe("A");
+    expect(abilityGrade({ score: 9.8, categories })).toBe("B");
+    expect(abilityGrade({ score: 9.4, categories })).toBe("C");
+    expect(abilityGrade({ score: 9.0, categories })).toBe("D");
+    expect(abilityGrade({ score: 8.9, categories })).toBe("E");
     expect(abilityGrade({ score: 7.4, categories })).toBe("E");
   });
 
@@ -38,13 +36,19 @@ describe("abilityGrade", () => {
     expect(abilityGrade({ score: 12, categories, failed: true })).toBe("F");
   });
 
-  it("grades an otherwise strong run as F when any category is below half", () => {
+  it("caps a strong run at C when any category is below half", () => {
     expect(
       abilityGrade({
         score: 12,
         categories: { ...categories, detail: 0.9 },
       }),
-    ).toBe("F");
+    ).toBe("C");
+    expect(
+      abilityGrade({
+        score: 9.2,
+        categories: { ...categories, detail: 0.9 },
+      }),
+    ).toBe("D");
   });
 
   it("does not grade an unbenchmarked model", () => {
@@ -54,13 +58,13 @@ describe("abilityGrade", () => {
 
 describe("speedGrade", () => {
   it("maps elapsed time to letter grades", () => {
-    expect(speedGrade(44_999)).toBe("A+");
-    expect(speedGrade(45_000)).toBe("A");
-    expect(speedGrade(90_000)).toBe("B");
+    expect(speedGrade(59_999)).toBe("A+");
+    expect(speedGrade(60_000)).toBe("A");
+    expect(speedGrade(120_000)).toBe("B");
     expect(speedGrade(180_000)).toBe("C");
-    expect(speedGrade(300_000)).toBe("D");
-    expect(speedGrade(600_000)).toBe("E");
-    expect(speedGrade(1_200_000)).toBe("F");
+    expect(speedGrade(240_000)).toBe("D");
+    expect(speedGrade(300_000)).toBe("E");
+    expect(speedGrade(600_000)).toBe("F");
     expect(speedGrade(null)).toBe("?");
   });
 });
@@ -133,9 +137,9 @@ describe("estimateBenchmarkCost", () => {
   });
 
   it("estimates both benchmark prompts with a missing side as zero", () => {
-    expect(estimateBenchmarkCost(1, 2)).toBeCloseTo(0.0368);
-    expect(estimateBenchmarkCost(1, null)).toBeCloseTo(0.032);
-    expect(estimateBenchmarkCost(null, 2)).toBeCloseTo(0.0048);
+    expect(estimateBenchmarkCost(1, 2)).toBeCloseTo(0.048);
+    expect(estimateBenchmarkCost(1, null)).toBeCloseTo(0.028);
+    expect(estimateBenchmarkCost(null, 2)).toBeCloseTo(0.02);
   });
 });
 
