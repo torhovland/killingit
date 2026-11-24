@@ -21,7 +21,7 @@ import type { AthleteAnswerContext } from "../../../apps/api/src/llm/profileCont
 import type { CoachingSurveyAdjustment } from "../../../apps/api/src/questions/adjustments.js";
 
 /**
- * The athlete the two-prompt benchmark sends to every model. It is a stable
+ * The athlete the catalog benchmark sends to every model. It is a stable
  * fixture, not a database snapshot: the benchmark prompts are built from the
  * real prompt builders, so the fixture only supplies the plan and the athlete
  * context those builders format. Keeping it in code means a prompt change is

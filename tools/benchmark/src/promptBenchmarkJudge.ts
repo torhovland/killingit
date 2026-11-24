@@ -16,6 +16,7 @@ import {
   type BenchmarkPromptId,
 } from "./promptBenchmarkInput.js";
 import {
+  averagePromptJudges,
   checkReviseSeasonGates,
   combinePromptScores,
   extractJson,
@@ -35,6 +36,10 @@ import {
 const JUDGE_MODEL = process.env.JUDGE_MODEL ?? "anthropic/claude-haiku-5.5";
 const MAX_TOKENS = Number(process.env.MAX_TOKENS ?? 4000);
 const JUDGE_TIMEOUT_MS = 240_000;
+const JUDGE_PASSES = Math.max(
+  1,
+  Math.floor(Number(process.env.JUDGE_PASSES ?? 1)),
+);
 
 const ZERO_COMPONENTS = {
   contract: 0,
@@ -100,6 +105,39 @@ Return ONLY a JSON object in this exact shape:
 The score is the sum of the six components (maximum 12.5), rounded to one decimal. The judgment should say what was strong and what was weak in this specific candidate.
 
 Return strict JSON. Inside the judgment string, do not use quotation marks of any kind (no double quotes and no single quotes). Do not use raw newlines inside the judgment. Refer to field names and phrases without quoting them.`;
+
+const GOAL_STEERING_RUBRIC = `You are a strict, expert endurance-coaching judge. You evaluate another model's answer to a coaching prompt. Do not answer the coaching prompt yourself and do not produce a training plan. Only evaluate the candidate JSON.
+
+You will receive the exact original prompt given to the candidate and the candidate's JSON response. The prompt is a Sunday refresh from a full-season simulation. The athlete is a 50-year-old, 85 kg man in Trondheim, seven weeks from a 100 km gravel race with 1170 m of climbing that he has said he wants to finish in 3:10:00 or faster. His current FTP is about 247 W and his CTL is about 31.5. The harness's own independent race model says 3:10 needs about 281 W in a group (309 W solo) on that course, so the goal is at serious risk. He has completed every prescribed session, but the stored block is only prescribing about 215-280 TSS a week and he says every workout felt easy and he was ready for more. He has said he can train 8-10 hours a week. The current block must keep its start date, 2027-06-21.
+
+A good answer recognises the gap rather than repeating the target, says plainly whether 3:10 is realistic from here and what is realistic, and uses the athlete's capacity to prescribe the most productive safe build: a materially bigger block and week, at least one long gravel-specific ride, sustained climbing or threshold work at a real intensity, and enough recovery. It may conclude that 3:10 is out of reach and aim for the closest realistic time, but it must not silently keep the same timid load, and it must not claim 3:10 is assured without evidence.
+
+Score the candidate on these six components. Be strict but fair. Judge the coaching content, not writing style alone.
+
+1. contract (0-1.5): valid JSON with the top-level keys season, block, week, today, tomorrow, nextWeek, diet and bodyMetrics, and optionally coachQuestion and modelsRemarks, using the contract's field names and types. The week has exactly seven dated sessions, the block has weeks, today and tomorrow are complete day objects, and there is no prose around the JSON or extra top-level fields.
+
+2. fidelity (0-2.0): follows the revision request and the supplied plan. The current block keeps its start date 2027-06-21; its end date and the following block boundaries should stay unless the answer gives a specific, coherent reason to move them, so an unexplained one-day shift is a minor issue rather than a structural failure. The current week runs 2027-06-28 through 2027-07-04 and keeps the past days as the athlete actually completed them; today is 2027-07-04 and matches its week session; tomorrow is 2027-07-05 and is one of next week's sessions; next week starts 2027-07-05 and covers seven days; the completed days are not turned into invented activities or missed sessions. A response that returns null for tomorrow or next week breaks the request.
+
+3. design (0-3.0): the plan is the best safe response to the gap. A week that still totals roughly 210-280 TSS with no harder or longer work is the same timid prescription that created the problem, so it scores at most 1.0 however well written. Reward a credible build week in roughly the 350-500 TSS range, or a clear reason why the athlete should not go that high, with a long gravel-specific ride (about three hours or more) and one purposeful sustained-power or climbing session. The revised block must show a real progression through the remaining weeks, not the same target loads. Penalise unsafe spikes, junk volume, sessions the athlete's history does not support, and a plan that ignores the 8-10 hour capacity without explanation.
+
+4. rationale (0-2.0): the week and block rationales state the goal situation explicitly, using the current FTP, the target time, the time remaining and the athlete's recent training. Reward a clear statement that the goal is at risk or out of reach and what would have to change, or a credible case that the new load closes the gap. A concrete power or pace comparison is stronger than a general caution; merely calling the target ambitious is weak. Penalise vague encouragement, restating the target as if it were a plan, and meta-commentary about revising the plan.
+
+5. grounding (0-2.0): uses the supplied numbers and feedback: FTP around 247 W, CTL around 31.5, 8-10 hours available, a completed week of about 214 TSS where every session felt easy, the 2027-08-22 race date and the 1170 m of climbing. It invents no races, injuries, measurements or completed sessions and does not claim the athlete has done more than the input shows.
+
+6. detail (0-2.0): concrete execution detail in the sessions: durations, intensities or power/heart-rate targets, interval structure, fuelling and pacing for the long ride, recovery and fallbacks. Reward specifics that make the week executable and that visibly raise the stimulus. Do not reward padding, repetition or numbers that contradict the plan.
+
+Return ONLY a JSON object in this exact shape:
+{"contract": 0.0, "fidelity": 0.0, "design": 0.0, "rationale": 0.0, "grounding": 0.0, "detail": 0.0, "score": 0.0, "judgment": "2-4 specific sentences"}
+
+The score is the sum of the six components (maximum 12.5), rounded to one decimal. The judgment should say what was strong and what was weak in this specific candidate.
+
+Return strict JSON. Inside the judgment string, do not use quotation marks of any kind (no double quotes and no single quotes). Do not use raw newlines inside the judgment. Refer to field names and phrases without quoting them.`;
+
+const PROMPT_RUBRICS = {
+  today: TODAY_RUBRIC,
+  reviseSeason: REVISE_SEASON_RUBRIC,
+  goalSteering: GOAL_STEERING_RUBRIC,
+} as const;
 
 async function callJudge(
   provider: LlmProvider,
@@ -186,8 +224,7 @@ async function judgePrompt(
     );
   }
 
-  const rubric =
-    definition.id === "today" ? TODAY_RUBRIC : REVISE_SEASON_RUBRIC;
+  const rubric = PROMPT_RUBRICS[definition.id];
   const attempts: PromptAttempt[] = [];
   let judged: ReturnType<typeof parseJudge> = null;
 
@@ -267,8 +304,9 @@ export async function runPromptBenchmarkJudgeStage(): Promise<void> {
       .filter(
         (score) =>
           !retryFailedJudges ||
-          (score.prompts.today.judge.error === null &&
-            score.prompts.reviseSeason.judge.error === null),
+          BENCHMARK_PROMPTS.every(
+            (definition) => score.prompts[definition.id]?.judge.error === null,
+          ),
       )
       .map((score) => score.id),
   );
@@ -282,6 +320,7 @@ export async function runPromptBenchmarkJudgeStage(): Promise<void> {
     .slice(0, limit);
   logPromptBenchmark(
     `judging ${pending.length} models with ${JUDGE_MODEL} at ${BENCHMARK_PROMPTS.length} prompts ` +
+      `and ${JUDGE_PASSES} pass${JUDGE_PASSES === 1 ? "" : "es"} ` +
       `(${done.size} already done, ${expired.length} left ungraded at the speed-F limit)`,
   );
 
@@ -305,24 +344,32 @@ export async function runPromptBenchmarkJudgeStage(): Promise<void> {
         if (originalPrompt === undefined) {
           throw new Error(`missing prompt text for ${definition.id}`);
         }
-        promptJudges[definition.id] = await judgePrompt(
-          provider,
-          apiKey,
-          definition,
-          originalPrompt,
-          result.prompts[definition.id],
-        );
+        const promptResult = result.prompts[definition.id];
+        if (promptResult === undefined) {
+          throw new Error(
+            `missing ${definition.id} result for ${result.id}; run the run stage again before judging`,
+          );
+        }
+        const passes: PromptJudge[] = [];
+        for (let pass = 0; pass < JUDGE_PASSES; pass += 1) {
+          passes.push(
+            await judgePrompt(
+              provider,
+              apiKey,
+              definition,
+              originalPrompt,
+              promptResult,
+            ),
+          );
+        }
+        promptJudges[definition.id] = averagePromptJudges(passes);
       }
 
       const gates = checkReviseSeasonGates(
-        result.prompts.reviseSeason.plan,
+        result.prompts.reviseSeason?.plan ?? null,
         baseline,
       );
-      const combined = combinePromptScores(
-        promptJudges.today,
-        promptJudges.reviseSeason,
-        gates.failures,
-      );
+      const combined = combinePromptScores(promptJudges, gates.failures);
       const judgeTimeMs = BENCHMARK_PROMPTS.reduce(
         (sum, definition) => sum + promptJudges[definition.id].judge.timeMs,
         0,
@@ -336,9 +383,9 @@ export async function runPromptBenchmarkJudgeStage(): Promise<void> {
         0,
       );
       const judgeError =
-        promptJudges.today.judge.error ??
-        promptJudges.reviseSeason.judge.error ??
-        null;
+        BENCHMARK_PROMPTS.map(
+          (definition) => promptJudges[definition.id].judge.error,
+        ).find((error) => error !== null) ?? null;
       const entry: PromptJudgeScore = {
         id: result.id,
         score: combined.score,
@@ -347,8 +394,9 @@ export async function runPromptBenchmarkJudgeStage(): Promise<void> {
         failed:
           combined.failed ||
           !result.ok ||
-          promptJudges.today.judge.error !== null ||
-          promptJudges.reviseSeason.judge.error !== null,
+          BENCHMARK_PROMPTS.some(
+            (definition) => promptJudges[definition.id].judge.error !== null,
+          ),
         gates,
         prompts: promptJudges,
         judge: {
@@ -365,7 +413,7 @@ export async function runPromptBenchmarkJudgeStage(): Promise<void> {
       completed += 1;
       logPromptBenchmark(
         `[${completed}/${results.length}] ${result.id} ${entry.score.toFixed(1)} ` +
-          `(today ${promptJudges.today.score.toFixed(1)} · revision ${promptJudges.reviseSeason.score.toFixed(1)}) ` +
+          `(today ${promptJudges.today.score.toFixed(1)} · revision ${promptJudges.reviseSeason.score.toFixed(1)} · goal ${promptJudges.goalSteering.score.toFixed(1)}) ` +
           `${entry.gates?.failures.length ? `gates failed: ${entry.gates.failures.join("; ")} ` : ""}` +
           `${((performance.now() - started) / 1000).toFixed(1)}s judge`,
       );

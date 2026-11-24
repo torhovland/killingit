@@ -27,7 +27,7 @@ export async function runPromptBenchmarkFinalizeStage(): Promise<void> {
   for (const result of results) {
     for (const definition of BENCHMARK_PROMPTS) {
       const promptResult = result.prompts[definition.id];
-      if (promptResult.ok) continue;
+      if (promptResult === undefined || promptResult.ok) continue;
       for (const attempt of promptResult.attempts) {
         if (attempt.parsed === null) continue;
         const errors = fatalPromptErrors(definition.id, attempt.parsed);
@@ -43,7 +43,7 @@ export async function runPromptBenchmarkFinalizeStage(): Promise<void> {
       }
     }
     result.ok = BENCHMARK_PROMPTS.every(
-      (definition) => result.prompts[definition.id].ok,
+      (definition) => result.prompts[definition.id]?.ok === true,
     );
   }
   await writeJsonFile(resultsPath, results);
@@ -51,6 +51,6 @@ export async function runPromptBenchmarkFinalizeStage(): Promise<void> {
     `recovered ${recovered} prompt responses with only warning-level contract issues`,
   );
   logPromptBenchmark(
-    `valid ${results.filter((result) => result.ok).length}/${results.length} models on both prompts`,
+    `valid ${results.filter((result) => result.ok).length}/${results.length} models on all prompts`,
   );
 }

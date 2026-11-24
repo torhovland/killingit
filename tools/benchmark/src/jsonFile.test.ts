@@ -182,15 +182,14 @@ describe("readJsonFile", () => {
     expect(message).toContain("totalTimeMs");
   });
 
-  it("refuses a model result that is missing one of the two prompts", async () => {
-    const broken: Record<string, unknown> = {
+  it("accepts a run written before the goal-steering prompt existed", async () => {
+    const older: Record<string, unknown> = {
       ...MODEL_RESULT,
-      prompts: { today: TODAY_RESULT },
+      prompts: { today: TODAY_RESULT, reviseSeason: REVISION_RESULT },
     };
-    const path = await writeFixture(broken);
-    return expect(readJsonFile(path, promptModelResultSchema)).rejects.toThrow(
-      "prompts.reviseSeason",
-    );
+    const path = await writeFixture(older);
+    const parsed = await readJsonFile(path, promptModelResultSchema);
+    expect(Object.keys(parsed.prompts)).toEqual(["today", "reviseSeason"]);
   });
 
   it("names the file when the JSON itself is invalid", async () => {
@@ -222,7 +221,7 @@ describe("readJsonFileOr", () => {
 });
 
 describe("readJsonEntries", () => {
-  it("keeps only the entries that match the current prompt shape", async () => {
+  it("keeps partial entries and drops the old flat shape", async () => {
     const oldFormat = {
       id: "old/model",
       name: "Old",
@@ -242,7 +241,10 @@ describe("readJsonEntries", () => {
     };
     const path = await writeFixture([MODEL_RESULT, oldFormat, partial]);
     const entries = await readJsonEntries(path, promptModelResultSchema);
-    expect(entries.map((entry) => entry.id)).toEqual(["example/model"]);
+    expect(entries.map((entry) => entry.id)).toEqual([
+      "example/model",
+      "partial/model",
+    ]);
   });
 
   it("returns no entries when the file is absent", async () => {

@@ -46,7 +46,7 @@ export async function runPromptBenchmarkShortlistStage(): Promise<void> {
 
   for (const score of ranked.slice(0, limit)) {
     const result = byId.get(score.id);
-    const today = dayFromPlan(result?.prompts.today.plan);
+    const today = dayFromPlan(result?.prompts.today?.plan);
     console.log(
       `\n=== ${score.score.toFixed(1)} ${score.id} | ${((result?.totalTimeMs ?? 0) / 1000).toFixed(1)}s $${(result?.totalCostUsd ?? 0).toFixed(4)} | ${JSON.stringify(score.components)} | gates ${score.gates?.failures.length ?? 0}`,
     );

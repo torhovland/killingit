@@ -22,6 +22,7 @@ import {
 } from "./promptBenchmarkFiles.js";
 import {
   BENCHMARK_PROMPTS,
+  GRADED_BENCHMARK_PROMPT_IDS,
   benchmarkAttempts,
   buildBenchmarkPromptMessages,
   type BenchmarkPromptDefinition,
@@ -50,6 +51,16 @@ import {
  * timeout and the provider caps it, so reporting a timeout stays accurate.
  */
 const PROVIDER_REQUEST_TIMEOUT_MS = 240_000;
+
+/**
+ * Extra wall-clock room for the goal-steering prompt after the two core prompts
+ * have had their full speed-F budget. Speed is still graded on the core prompts
+ * alone, so this prompt can add ability coverage without making a model look
+ * slower than the app sees it.
+ */
+const GOAL_STEERING_TIME_BUDGET_MS = 300_000;
+
+const GRADED_PROMPT_IDS = new Set<string>(GRADED_BENCHMARK_PROMPT_IDS);
 
 /**
  * Calls one model once through the app's `LlmProvider`, recording the same
@@ -161,6 +172,29 @@ async function runPrompt(
   };
 }
 
+/** True when every benchmark prompt has a valid stored response. */
+function isCompleteResult(result: PromptModelResult): boolean {
+  return BENCHMARK_PROMPTS.every(
+    (definition) => result.prompts[definition.id]?.ok === true,
+  );
+}
+
+/** The placeholder for a prompt not called because the model already timed out. */
+function skippedPromptResult(prompt: BenchmarkPromptId): PromptRunResult {
+  return {
+    prompt,
+    attempts: [],
+    retryNeeded: false,
+    ok: false,
+    totalTimeMs: 0,
+    totalCostUsd: 0,
+    plan: null,
+    validationErrors: [
+      "not run: the two graded prompts reached the speed-F limit",
+    ],
+  };
+}
+
 async function runModel(
   provider: LlmProvider,
   apiKey: string,
@@ -171,13 +205,29 @@ async function runModel(
 ): Promise<PromptModelResult> {
   const requestedAt = new Date().toISOString();
   const started = performance.now();
-  const deadline = started + SPEED_F_LIMIT_MS;
+  // The two graded prompts keep their full speed-F budget. The goal-steering
+  // prompt gets a separate budget after it, and is skipped when the graded
+  // prompts have already used the speed-F limit.
+  const gradedDeadline = started + SPEED_F_LIMIT_MS;
+  const goalDeadline = gradedDeadline + GOAL_STEERING_TIME_BUDGET_MS;
   const results = {} as Record<BenchmarkPromptId, PromptRunResult>;
+  const gradedTimeSoFar = (): number =>
+    GRADED_BENCHMARK_PROMPT_IDS.reduce(
+      (sum, id) => sum + (results[id]?.totalTimeMs ?? 0),
+      0,
+    );
 
   for (const definition of BENCHMARK_PROMPTS) {
     const messages = prompts.get(definition.id);
     if (messages === undefined) {
       throw new Error(`missing prompt messages for ${definition.id}`);
+    }
+    if (
+      !GRADED_PROMPT_IDS.has(definition.id) &&
+      gradedTimeSoFar() >= SPEED_F_LIMIT_MS
+    ) {
+      results[definition.id] = skippedPromptResult(definition.id);
+      continue;
     }
     const prior = existing?.prompts[definition.id];
     if (prior?.ok) {
@@ -190,7 +240,7 @@ async function runModel(
       model.id,
       definition,
       messages,
-      deadline,
+      GRADED_PROMPT_IDS.has(definition.id) ? gradedDeadline : goalDeadline,
     );
     results[definition.id] = prior
       ? {
@@ -221,11 +271,10 @@ async function runModel(
     (sum, result) => sum + result.totalTimeMs,
     0,
   );
-  // A model that would grade F on speed is left ungraded ("?") instead of
-  // waiting for it or recording a failed ability.
-  const expired =
-    promptTimeMs >= SPEED_F_LIMIT_MS ||
-    performance.now() - started >= SPEED_F_LIMIT_MS;
+  const gradedTimeMs = gradedTimeSoFar();
+  // A model that would grade F on the two app prompts is left ungraded ("?")
+  // instead of waiting for it or recording a failed ability.
+  const expired = gradedTimeMs >= SPEED_F_LIMIT_MS;
   return {
     id: model.id,
     name: model.name,
@@ -234,7 +283,7 @@ async function runModel(
     ok: !expired && promptResults.every((result) => result.ok),
     expired,
     totalTimeMs: expired
-      ? Math.max(promptTimeMs, SPEED_F_LIMIT_MS)
+      ? Math.max(gradedTimeMs, SPEED_F_LIMIT_MS)
       : promptTimeMs,
     totalCostUsd: promptResults.reduce(
       (sum, result) => sum + result.totalCostUsd,
@@ -270,7 +319,9 @@ async function selectModels(
   if (retryFailed) {
     const failed = new Set(
       results
-        .filter((result) => !result.ok && result.expired !== true)
+        .filter(
+          (result) => !isCompleteResult(result) && result.expired !== true,
+        )
         .map((result) => result.id),
     );
     models = models.filter((model) => failed.has(model.id));
@@ -422,7 +473,7 @@ export async function runPromptBenchmarkRunStage(): Promise<void> {
   const retryFailed = process.env.RETRY_FAILED === "1";
   const done = retryFailed
     ? new Set<string>()
-    : new Set(results.map((result) => result.id));
+    : new Set(results.filter(isCompleteResult).map((result) => result.id));
   const pending = retryFailed
     ? models
     : models.filter((model) => !done.has(model.id));
@@ -440,9 +491,7 @@ export async function runPromptBenchmarkRunStage(): Promise<void> {
       cursor += 1;
       const model = pending[index];
       if (!model) return;
-      const existing = retryFailed
-        ? results.find((entry) => entry.id === model.id)
-        : undefined;
+      const existing = results.find((entry) => entry.id === model.id);
       const result = await runModel(
         provider,
         apiKey,
@@ -457,6 +506,7 @@ export async function runPromptBenchmarkRunStage(): Promise<void> {
       completed += 1;
       const detail = BENCHMARK_PROMPTS.map((definition) => {
         const promptResult = result.prompts[definition.id];
+        if (promptResult === undefined) return `${definition.id} MISSING`;
         return `${definition.id} ${promptResult.ok ? "ok" : "FAILED"} ${(promptResult.totalTimeMs / 1000).toFixed(1)}s $${promptResult.totalCostUsd.toFixed(4)}`;
       }).join(" | ");
       logPromptBenchmark(
@@ -470,6 +520,6 @@ export async function runPromptBenchmarkRunStage(): Promise<void> {
 
   await Promise.all(Array.from({ length: concurrency }, () => worker()));
   logPromptBenchmark(
-    `done: ${results.filter((result) => result.ok).length}/${results.length} models valid on both prompts`,
+    `done: ${results.filter((result) => result.ok).length}/${results.length} models valid on all prompts`,
   );
 }

@@ -1,24 +1,32 @@
 # Prompts benchmark
 
-This benchmark sends two prompts to every selected OpenRouter model through the
-app's `LlmProvider`:
+This benchmark sends three prompts to every selected OpenRouter model through
+the app's `LlmProvider`:
 
 - the daily-update prompt for 2026-10-30, which asks for today's session,
-  tomorrow's session and the current week; and
+  tomorrow's session and the current week;
 - the season-revision prompt for 2026-11-01 after the athlete set the Atlas
-  Mountain Race on 28 February 2027 as the next goal.
+  Mountain Race on 28 February 2027 as the next goal; and
+- the goal-steering refresh for 2027-07-04 from the full-season test, seven
+  weeks before a 3:10 gravel race that is slipping away while the athlete
+  completes every session and says they all feel easy.
 
-The optional `judge` stage scores both responses with
-`anthropic/claude-haiku-5.5`.
+The optional `judge` stage scores every response with
+`anthropic/claude-haiku-5.5`. A single Haiku pass moves by more than a point
+between runs, so a small comparison should set `JUDGE_PASSES=3` to average
+three passes, or use a stronger judge such as
+`JUDGE_MODEL=anthropic/claude-opus-5.5`. Both were run for the 2026-11-24
+goal-steering comparison; the strong judge was markedly more stable.
 
-Both prompts are built by the app's real prompt builders
-(`buildDailyUpdateMessages` and `buildPlanUpdateMessages`) from a fixture
-athlete, so every rule, contract and context change reaches the benchmark
-instead of leaving it on a frozen snapshot. The fixture lives in
-`tools/benchmark/src/promptBenchmarkFixture.ts` and the two prompt definitions
-in `tools/benchmark/src/promptBenchmarkInput.ts`. A snapshot test pins the built
-input, so a prompt change fails `bun run test` until the snapshot is deliberately
-updated:
+Every prompt is built by the app's real prompt builders
+(`buildDailyUpdateMessages` and `buildPlanUpdateMessages`) from fixture
+athletes, so every rule, contract and context change reaches the benchmark
+instead of leaving it on a frozen snapshot. The fixtures live in
+`tools/benchmark/src/promptBenchmarkFixture.ts` and
+`tools/benchmark/src/promptBenchmarkSeasonFixture.ts`, and the prompt
+definitions in `tools/benchmark/src/promptBenchmarkInput.ts`. A snapshot test
+pins the built input, so a prompt change fails `bun run test` until the snapshot
+is deliberately updated:
 
 ```sh
 bun run --filter @killingit/benchmark test --update-snapshots
@@ -32,10 +40,17 @@ and the run, judge, finalize, shortlist, sync-db and report stages — lives in
 the `@killingit/benchmark` workspace (`tools/benchmark/src`). This directory
 holds only the git-ignored run and report artifacts. See ADR 0032.
 
-Each model's score is the mean of its two judged scores (each out of 12.5), and
-every component keeps the weaker of the two prompts, so a category failure in
-either prompt caps the grade at C. Speed and cost are the sums of both prompt
-runs, including retries.
+Each model's score is the mean of its three judged scores (each out of 12.5),
+and every component keeps the weakest prompt, so a category failure in any
+prompt caps the grade at C. Speed and cost are the sums of the two core app
+prompt runs (today and season revision), including retries, so the extra
+goal-steering ability call does not make a model look slower or more expensive
+than the app sees it.
+
+The ability bands were calibrated on the two core prompts. The goal-steering
+task is newer and harder, so the three-prompt mean sits lower; compare raw
+scores and relative order until a full catalog run recalibrates the bands. Do
+not sync the catalog on the old bands after adding this prompt.
 
 The season revision also has three hard gates. Ability is F when a model:
 
@@ -52,9 +67,19 @@ are checked mechanically against the current block supplied in the prompt. The
 block comparison ignores the block name and rationale, and compares the focus,
 end date and each week's start date, focus, target load and FTP estimate.
 
-A model that reaches the speed-F limit (10 minutes across both prompts) is
-stopped, skipped by the judge, and recorded with ability `?` rather than F, so
-it stays ungraded instead of being labelled a failure.
+The goal-steering prompt is judged against the harness's independent race
+model: at about 247 W FTP, 3:10 on the 100 km course needs roughly 281 W in a
+group. The judge rewards a candid statement that the goal is at risk or out of
+reach from here, what is realistic, and a materially more ambitious safe block
+that uses the athlete's stated 8-10 hours. A week that stays in the same
+210-280 TSS range is treated as the timid prescription that created the problem.
+There is no mechanical gate on this prompt: it is a coaching judgement, not a
+keyword.
+
+A model that reaches the speed-F limit (10 minutes across the two core prompts)
+is stopped, skipped by the judge, and recorded with ability `?` rather than F, so
+it stays ungraded instead of being labelled a failure. It is not asked the
+goal-steering prompt.
 
 ## Re-running the benchmark
 
@@ -151,7 +176,7 @@ a valid answer:
 # Retry only the prompts that are still unfinished, cheapest models first.
 RETRY_FAILED=1 CONCURRENCY=2 RUN_ID=... bun run benchmark:prompts run
 
-# Judge only models that finished both prompts; re-judge empty judge responses.
+# Judge only models that finished every prompt; re-judge empty judge responses.
 ONLY_VALID=1 RETRY_FAILED_JUDGES=1 RUN_ID=... bun run benchmark:prompts judge
 
 # Record finished models only and leave the rest at their previous grade.

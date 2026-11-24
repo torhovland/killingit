@@ -12,6 +12,7 @@ import {
   promptBenchmarkRunDirectory,
   promptBenchmarkRunId,
 } from "./promptBenchmarkFiles.js";
+import { gradedPromptCostUsd, gradedPromptTimeMs } from "./promptBenchmark.js";
 import { BENCHMARK_PROMPTS } from "./promptBenchmarkInput.js";
 import {
   promptBenchmarkSourcesSchema,
@@ -36,8 +37,8 @@ function gradesFor(
       categories: score?.components ?? null,
       failed: score?.failed ?? true,
     }),
-    speed: speedGrade(result?.totalTimeMs ?? null),
-    cost: costGrade(result?.totalCostUsd ?? null),
+    speed: speedGrade(result === undefined ? null : gradedPromptTimeMs(result)),
+    cost: costGrade(result === undefined ? null : gradedPromptCostUsd(result)),
   };
 }
 
@@ -102,7 +103,7 @@ function parseJudgeModel(score: PromptJudgeScore): string | null {
   return typeof score.judge?.model === "string" ? score.judge.model : null;
 }
 
-/** Renders the two-prompt benchmark's HTML report from a run directory. */
+/** Renders the prompt benchmark's HTML report from a run directory. */
 export async function runPromptBenchmarkReportStage(): Promise<void> {
   const runId = promptBenchmarkRunId();
   const runDirectory = promptBenchmarkRunDirectory(runId);
@@ -171,10 +172,10 @@ export async function runPromptBenchmarkReportStage(): Promise<void> {
   );
   const valid = results.filter((result) => result.ok).length;
   const expired = results.filter((result) => result.expired === true).length;
-  const retries = results.filter(
-    (result) =>
-      result.prompts.today?.retryNeeded === true ||
-      result.prompts.reviseSeason?.retryNeeded === true,
+  const retries = results.filter((result) =>
+    BENCHMARK_PROMPTS.some(
+      (definition) => result.prompts[definition.id]?.retryNeeded === true,
+    ),
   ).length;
   const gateFailures = scores.filter(
     (score) => (score.gates?.failures.length ?? 0) > 0,
@@ -206,7 +207,7 @@ export async function runPromptBenchmarkReportStage(): Promise<void> {
         <td class="num score ${scoreClass(score.score)}">${score.score.toFixed(1)}</td>
         <td class="num">${formatTime(result.totalTimeMs)}</td>
         <td class="num">${formatCost(result.totalCostUsd)}</td>
-        <td class="num">${result.prompts.today?.ok && result.prompts.reviseSeason?.ok ? "yes" : "no"}</td>
+        <td class="num">${result.ok ? "yes" : "no"}</td>
         <td class="num">${(score.gates?.failures.length ?? 0) === 0 ? "pass" : "FAIL"}</td>
       </tr>`;
     })
@@ -342,13 +343,13 @@ export async function runPromptBenchmarkReportStage(): Promise<void> {
           <div><span>Cost grade</span><strong>${grades.cost}</strong></div>
           <div><span>Total time</span><strong>${formatTime(result.totalTimeMs)}</strong></div>
           <div><span>Total cost</span><strong>${formatCost(result.totalCostUsd)}</strong></div>
-          <div><span>Both valid</span><strong>${result.ok ? "yes" : "no"}</strong></div>
+          <div><span>All valid</span><strong>${result.ok ? "yes" : "no"}</strong></div>
           <div><span>Hard gates</span><strong>${(score.gates?.failures.length ?? 0) === 0 ? "pass" : "FAIL"}</strong></div>
           <div><span>Judge cost</span><strong>${formatCost(score.judge?.costUsd ?? 0)}</strong></div>
           <div><span>Judged</span><strong>${escapeHtml(score.judge?.model ?? "—")}</strong></div>
         </div>
         ${gateBlock}
-        <div class="components">Combined components (weaker of the two prompts): Contract ${formatComponent(score.components.contract)}/1.5 · Fidelity ${formatComponent(score.components.fidelity)}/2 · Design ${formatComponent(score.components.design)}/3 · Rationale ${formatComponent(score.components.rationale)}/2 · Grounding ${formatComponent(score.components.grounding)}/2 · Detail ${formatComponent(score.components.detail)}/2</div>
+        <div class="components">Combined components (weaker of the ${BENCHMARK_PROMPTS.length} prompts): Contract ${formatComponent(score.components.contract)}/1.5 · Fidelity ${formatComponent(score.components.fidelity)}/2 · Design ${formatComponent(score.components.design)}/3 · Rationale ${formatComponent(score.components.rationale)}/2 · Grounding ${formatComponent(score.components.grounding)}/2 · Detail ${formatComponent(score.components.detail)}/2</div>
         <div class="judgment"><strong>Combined judgment:</strong> ${escapeHtml(score.note)}</div>
         ${promptSections}
       </section>`;
@@ -451,11 +452,11 @@ export async function runPromptBenchmarkReportStage(): Promise<void> {
 <div class="cover">
   <div class="eyebrow">Killingit · LLM benchmark</div>
   <h1>Prompt Benchmark</h1>
-  <p class="subtitle">Two coaching tasks, all ${results.length} selected models on OpenRouter. Same athlete, two prompts: a single day on Friday 30 October 2026, and a season revision on Sunday 1 November 2026 after the Atlas Mountain Race on 28 February 2027 became the next goal. Every valid response is scored by ${judgeModel ?? "the judge model"}.</p>
+  <p class="subtitle">Three coaching tasks, all ${results.length} selected models on OpenRouter. Two app prompts from a fixture athlete — a single day on Friday 30 October 2026 and a season revision on Sunday 1 November 2026 after the Atlas Mountain Race became the next goal — plus a goal-steering refresh from the full-season test on Sunday 4 July 2027, seven weeks before a 3:10 gravel race that is slipping away. Every valid response is scored by ${judgeModel ?? "the judge model"}.</p>
 
   <div class="summary-grid">
     <div class="summary-card"><span>Models</span><strong>${results.length}</strong></div>
-    <div class="summary-card"><span>Valid on both</span><strong>${valid}</strong></div>
+    <div class="summary-card"><span>Valid on all</span><strong>${valid}</strong></div>
     <div class="summary-card"><span>Ungraded (speed F)</span><strong>${expired}</strong></div>
     <div class="summary-card"><span>Hard-gate failures</span><strong>${gateFailures}</strong></div>
     <div class="summary-card"><span>Average score (valid)</span><strong>${avgScore.toFixed(1)}</strong></div>
@@ -472,21 +473,24 @@ export async function runPromptBenchmarkReportStage(): Promise<void> {
             )}; a later run replaces an earlier result for the same model. `
         : ""
     }
-    Each model received the daily-update prompt and the season-revision prompt
-    built by the app's own prompt builders from a fixture athlete, in two
-    separate calls. The today prompt asks for today's session, tomorrow's
-    session and the current week on 2026-10-30. The revision prompt asks for a
-    refreshed season, current block, week and day after the athlete set the
-    Atlas Mountain Race on 28 February 2027 as the next goal. Both
-    prompts contain the full athlete profile, recent activities and coach
-    analyses, the current plan, the athlete's latest metrics, and the weather
-    forecast. A model needed a retry when a response was not parseable or did
-    not match its contract. ${retries} models needed at least one retry.
-    ${results.length - valid} models did not return valid JSON on both prompts;
-    they remain in the tables with a score of 0 and their provider error, except
-    the ${expired} models that reached the 10-minute speed-F limit. Those were
-    stopped and recorded with ability <code>?</code> instead of F, and are
-    omitted from scoring.
+    Each model received three prompts built by the app's own prompt builders,
+    in three separate calls. The today prompt asks for today's session,
+    tomorrow's session and the current week on 2026-10-30. The revision prompt
+    asks for a refreshed season, current block, week and day after the athlete
+    set the Atlas Mountain Race on 28 February 2027 as the next goal. The goal
+    steering prompt is the Sunday 2027-07-04 refresh from the full-season test:
+    a compliant athlete has completed every session, says they all felt easy,
+    but is still at about 247 W FTP and a 31 CTL with seven weeks to a 3:10
+    gravel race, and the coach must decide whether the goal is realistic and how
+    to steer the remaining block. Every prompt contains the athlete profile,
+    recent activities and coach analyses, the current plan, the athlete's
+    metrics, and the weather forecast. A model needed a retry when a response
+    was not parseable or did not match its contract. ${retries} models needed
+    at least one retry. ${results.length - valid} models did not return valid
+    JSON on all prompts; they remain in the tables with a score of 0 and their
+    provider error, except the ${expired} models that reached the 10-minute
+    speed-F limit. Those were stopped and recorded with ability <code>?</code>
+    instead of F, and are omitted from scoring.
   </div>
 
   <div class="callout">
@@ -504,13 +508,19 @@ export async function runPromptBenchmarkReportStage(): Promise<void> {
     for its prompt, not by a code pattern matcher. Each prompt is scored out of
     12.5 across contract compliance (1.5), fidelity (2.0), design (3.0),
     rationale (2.0), grounding (2.0), and extra, useful detail (2.0). The
-    combined score is the mean of the two prompt scores; each component keeps
-    the weaker of the two values, so a failing component in either prompt caps
-    the grade at C. Time and cost are the sum of both prompt runs, including
-    retries. Judge cost: ${judgeModel ? formatCost(judgeCost) : "—"}.
-    Ability, speed and cost grades use the same bands as the app catalog; a
-    model stopped at the 10-minute speed-F limit is shown as ability
-    <code>?</code>.
+    combined score is the mean of all prompt scores; each component keeps the
+    weaker value across them, so a failing component in any prompt caps the
+    grade at C. Time and cost are the sum of every prompt run, including
+    retries, while the speed and cost grades use the two core app prompts so
+    the goal-steering call does not make a model look slower or more expensive
+    than the app sees it. Judge cost:
+    ${judgeModel ? formatCost(judgeCost) : "—"}. Ability, speed and cost grades
+    use the same bands as the app catalog; a model stopped at the 10-minute
+    speed-F limit is shown as ability <code>?</code>. The goal-steering prompt
+    is a newer and harder task, so the three-prompt mean sits below the
+    two-prompt distribution the current ability bands were calibrated on. Treat
+    the raw score and the relative order as the signal until a full catalog run
+    recalibrates the bands.
   </div>
 
   <div class="summary-grid">
@@ -520,20 +530,20 @@ export async function runPromptBenchmarkReportStage(): Promise<void> {
     <div class="summary-card"><span>Within 0.3 of best</span><strong>${close.length}</strong></div>
   </div>
 
-  <p class="toc-note">Run <code>${runId}</code> · generated ${new Date().toISOString().slice(0, 10)} · model costs are OpenRouter-reported, including retries · times are the sum of both prompts · judge: ${judgeModel ?? "—"}.</p>
+  <p class="toc-note">Run <code>${runId}</code> · generated ${new Date().toISOString().slice(0, 10)} · model costs are OpenRouter-reported, including retries · times are the sum of every prompt · judge: ${judgeModel ?? "—"}.</p>
 </div>
 
 <div class="page-break"></div>
 <h1 class="section-title">All models</h1>
-<p class="section-intro">Ranked by combined judged quality, then by cost. Time and cost include both prompts and any retry.</p>
+<p class="section-intro">Ranked by combined judged quality, then by cost. Time and cost include every prompt and any retry; speed and cost grades use the two core app prompts.</p>
 <table>
-  <thead><tr><th class="num">Rank</th><th>Model</th><th class="num">Ability</th><th class="num">Speed</th><th class="num">Cost grade</th><th class="num">Score /12.5</th><th class="num">Time</th><th class="num">Run cost</th><th class="num">Both valid</th><th class="num">Gates</th></tr></thead>
+  <thead><tr><th class="num">Rank</th><th>Model</th><th class="num">Ability</th><th class="num">Speed</th><th class="num">Cost grade</th><th class="num">Score /12.5</th><th class="num">Time</th><th class="num">Run cost</th><th class="num">All valid</th><th class="num">Gates</th></tr></thead>
   <tbody>${rows}</tbody>
 </table>
 
 <div class="page-break"></div>
 <h1 class="section-title">Models close to the best</h1>
-<p class="section-intro">Every model scoring within 0.3 points of the best (${best.toFixed(1)}), ranked by quality and then cost. This is the practical shortlist: the plans that are close to as good as the best one on both prompts.</p>
+<p class="section-intro">Every model scoring within 0.3 points of the best (${best.toFixed(1)}), ranked by quality and then cost. This is the practical shortlist: the plans that are close to as good as the best one on all prompts.</p>
 <table>
   <thead><tr><th class="num">Rank</th><th>Model</th><th class="num">Ability</th><th class="num">Speed</th><th class="num">Cost grade</th><th class="num">Score /12.5</th><th class="num">Time</th><th class="num">Run cost</th><th class="num">Gates</th></tr></thead>
   <tbody>${subsetRows}</tbody>
@@ -556,11 +566,11 @@ export async function runPromptBenchmarkReportStage(): Promise<void> {
     <tbody>${fastestRows}</tbody>
   </table>
 </div>
-<p class="section-intro" style="margin-top:14pt">Both lists are restricted to the shortlist above. A zero cost is an OpenRouter free or zero-priced model.</p>
+<p class="section-intro" style="margin-top:14pt">Both lists are restricted to the shortlist above. A zero cost is an OpenRouter free or zero-priced model; speed and cost grades use the two core app prompts.</p>
 
 <div class="page-break"></div>
 <h1 class="section-title">Model-by-model</h1>
-<p class="section-intro">One section per model in rank order. Each shows the sum of both prompts, the hard gates, and then each prompt's score, judgment and JSON exactly as returned (pretty-printed).</p>
+<p class="section-intro">One section per model in rank order. Each shows the sum of every prompt, the hard gates, and then each prompt's score, judgment and JSON exactly as returned (pretty-printed).</p>
 
 ${sections}
 </body>

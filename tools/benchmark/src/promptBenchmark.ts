@@ -1,13 +1,25 @@
 import { weekDates, type LlmModelGrade } from "@killingit/shared";
 import { GRADE_ORDER } from "../../../apps/api/src/llm/modelCatalog.js";
 import {
+  BENCHMARK_PROMPTS,
+  GOAL_STEERING_TOP_LEVEL_KEYS,
+  GRADED_BENCHMARK_PROMPT_IDS as GRADED_PROMPT_IDS,
   REVISE_SEASON_DATE,
   REVISE_SEASON_TOP_LEVEL_KEYS,
   REVISE_WEEK_START,
   TODAY_BENCHMARK_DATE,
   type BenchmarkPromptId,
 } from "./promptBenchmarkInput.js";
-import type { ReviseSeasonGates } from "./promptBenchmarkTypes.js";
+import {
+  GOAL_STEERING_NEXT_WEEK_START,
+  GOAL_STEERING_TODAY,
+  GOAL_STEERING_WEEK_START,
+} from "./promptBenchmarkSeasonFixture.js";
+import type {
+  PromptJudge,
+  PromptModelResult,
+  ReviseSeasonGates,
+} from "./promptBenchmarkTypes.js";
 
 const BENCHMARK_COMPONENT_KEYS = [
   "contract",
@@ -518,6 +530,124 @@ function validateReviseSeasonPlan(plan: unknown): string[] {
 }
 
 /**
+ * Checks the goal-steering response: the revised season and block, the current
+ * week ending on the prompt day, today, tomorrow and the new week. The model
+ * has to keep today's completed session and put tomorrow in the new week.
+ */
+function validateGoalSteeringPlan(plan: unknown): string[] {
+  if (!isRecord(plan)) return ["response is not an object"];
+  const errors: string[] = [];
+  checkTopLevelKeys(
+    plan,
+    GOAL_STEERING_TOP_LEVEL_KEYS,
+    ["coachQuestion", "modelsRemarks"],
+    errors,
+  );
+
+  const season = plan.season;
+  if (!isRecord(season)) {
+    errors.push("missing season object");
+  } else {
+    for (const key of ["goal", "rationale", "startDate", "endDate"]) {
+      checkField(season, key, "string", errors, "season:");
+    }
+    if (!Array.isArray(season.blocks) || season.blocks.length === 0) {
+      errors.push("season: blocks must be a non-empty array");
+    }
+  }
+
+  const block = plan.block;
+  if (!isRecord(block)) {
+    errors.push("missing block object");
+  } else {
+    for (const key of ["name", "focus", "rationale", "startDate", "endDate"]) {
+      checkField(block, key, "string", errors, "block:");
+    }
+    if (block.startDate !== "2027-06-21") {
+      errors.push("block: startDate must stay 2027-06-21");
+    }
+    if (!Array.isArray(block.weeks) || block.weeks.length === 0) {
+      errors.push("block: weeks must be a non-empty array");
+    }
+  }
+
+  const week = plan.week;
+  if (!isRecord(week)) {
+    errors.push("missing week object");
+  } else {
+    checkWeekPlan(week, GOAL_STEERING_WEEK_START, errors, "week:");
+  }
+
+  const today = plan.today;
+  if (!isRecord(today)) {
+    errors.push("missing today object");
+  } else {
+    checkDaySession(today, errors, "today:");
+    if (today.date !== GOAL_STEERING_TODAY) {
+      errors.push(`today date must be ${GOAL_STEERING_TODAY}`);
+    }
+    const sessions: unknown[] =
+      isRecord(week) && Array.isArray(week.sessions)
+        ? (week.sessions as unknown[])
+        : [];
+    const matching = sessions.find(
+      (session) => isRecord(session) && session.date === GOAL_STEERING_TODAY,
+    );
+    if (matching === undefined) {
+      errors.push("today must be one of the week's sessions");
+    } else if (isRecord(matching)) {
+      for (const key of [
+        "title",
+        "type",
+        "intensity",
+        "durationMinutes",
+        "status",
+      ] as const) {
+        if (matching[key] !== today[key]) {
+          errors.push(
+            `today ${key} must match the week's session on that date`,
+          );
+        }
+      }
+    }
+  }
+
+  const tomorrow = plan.tomorrow;
+  if (!isRecord(tomorrow)) {
+    errors.push("tomorrow must be an object");
+  } else {
+    checkDaySession(tomorrow, errors, "tomorrow:");
+    if (tomorrow.date !== GOAL_STEERING_NEXT_WEEK_START) {
+      errors.push(`tomorrow date must be ${GOAL_STEERING_NEXT_WEEK_START}`);
+    }
+  }
+
+  const nextWeek = plan.nextWeek;
+  if (!isRecord(nextWeek)) {
+    errors.push("nextWeek must be an object");
+  } else {
+    checkWeekPlan(nextWeek, GOAL_STEERING_NEXT_WEEK_START, errors, "nextWeek:");
+    if (isRecord(tomorrow) && Array.isArray(nextWeek.sessions)) {
+      const tomorrowInNextWeek = nextWeek.sessions.some(
+        (session) =>
+          isRecord(session) && session.date === GOAL_STEERING_NEXT_WEEK_START,
+      );
+      if (!tomorrowInNextWeek) {
+        errors.push("tomorrow must be one of nextWeek's sessions");
+      }
+    }
+  }
+
+  if (!isRecord(plan.diet)) {
+    errors.push("diet must be an object");
+  }
+  if (!Array.isArray(plan.bodyMetrics)) {
+    errors.push("bodyMetrics must be an array");
+  }
+  return errors;
+}
+
+/**
  * Reads the block that the revision prompt supplies as the current block. The
  * benchmark compares the answer against this block to detect an unchanged plan.
  */
@@ -669,9 +799,40 @@ export function validatePromptPlan(
   prompt: BenchmarkPromptId,
   plan: unknown,
 ): string[] {
-  return prompt === "today"
-    ? validateTodayPlan(plan)
-    : validateReviseSeasonPlan(plan);
+  switch (prompt) {
+    case "today":
+      return validateTodayPlan(plan);
+    case "reviseSeason":
+      return validateReviseSeasonPlan(plan);
+    case "goalSteering":
+      return validateGoalSteeringPlan(plan);
+  }
+}
+
+/**
+ * Total time of the prompts that define the speed grade. The goal-steering
+ * prompt adds ability coverage, not a reason to make an otherwise fast model
+ * look slow, so it is excluded here.
+ */
+export function gradedPromptTimeMs(result: PromptModelResult): number | null {
+  let total = 0;
+  for (const id of GRADED_PROMPT_IDS) {
+    const value = result.prompts[id]?.totalTimeMs;
+    if (value === undefined) return null;
+    total += value;
+  }
+  return total;
+}
+
+/** Total cost of the prompts that define the cost grade. */
+export function gradedPromptCostUsd(result: PromptModelResult): number | null {
+  let total = 0;
+  for (const id of GRADED_PROMPT_IDS) {
+    const value = result.prompts[id]?.totalCostUsd;
+    if (value === undefined) return null;
+    total += value;
+  }
+  return total;
 }
 
 /** True for a contract error that only describes an extra or unexpected key. */
@@ -748,31 +909,100 @@ export function parseJudge(value: unknown): {
 }
 
 /**
- * Combines the two judged prompts into the model's benchmark result. The score
- * is the mean of both prompt scores; a component counts at its weaker value so
- * a failing component in either prompt still grades the model F.
+ * Combines every judged prompt into the model's benchmark result. The score is
+ * the mean of the prompt scores; a component counts at its weaker value so a
+ * failing component in any prompt still grades the model down.
  */
+/**
+ * Averages repeated judge passes for one prompt. A single Haiku pass moves by
+ * more than a point between runs, which is wider than the difference between
+ * capable models, so a comparison can ask for several passes and score the mean.
+ * The note comes from the pass closest to the mean score so the report still
+ * shows one specific judgment rather than a synthetic summary.
+ */
+export function averagePromptJudges(
+  passes: readonly PromptJudge[],
+): PromptJudge {
+  if (passes.length === 0) {
+    throw new Error("cannot average zero judge passes");
+  }
+  const scored = passes.filter((pass) => pass.judge.error === null);
+  const reference = passes[0];
+  if (reference === undefined) {
+    throw new Error("cannot average zero judge passes");
+  }
+  if (scored.length === 0) {
+    return {
+      ...reference,
+      judge: {
+        ...reference.judge,
+        attempts: passes.reduce((sum, pass) => sum + pass.judge.attempts, 0),
+        timeMs: passes.reduce((sum, pass) => sum + pass.judge.timeMs, 0),
+        costUsd: passes.reduce((sum, pass) => sum + pass.judge.costUsd, 0),
+      },
+    };
+  }
+  const components: Record<string, number> = {};
+  for (const key of BENCHMARK_COMPONENT_KEYS) {
+    const values = scored.map((pass) => pass.components[key] ?? 0);
+    components[key] =
+      Math.round(
+        (values.reduce((sum, value) => sum + value, 0) / values.length) * 10,
+      ) / 10;
+  }
+  const score =
+    Math.round(
+      BENCHMARK_COMPONENT_KEYS.reduce(
+        (sum, key) => sum + (components[key] ?? 0),
+        0,
+      ) * 10,
+    ) / 10;
+  const notePass = scored.reduce((closest, pass) =>
+    Math.abs(pass.score - score) < Math.abs(closest.score - score)
+      ? pass
+      : closest,
+  );
+  return {
+    score,
+    components,
+    note: `${notePass.note} Mean of ${scored.length} judge pass${scored.length === 1 ? "" : "es"}.`,
+    judge: {
+      model: reference.judge.model,
+      attempts: passes.reduce((sum, pass) => sum + pass.judge.attempts, 0),
+      timeMs: passes.reduce((sum, pass) => sum + pass.judge.timeMs, 0),
+      costUsd: passes.reduce((sum, pass) => sum + pass.judge.costUsd, 0),
+      error: null,
+    },
+  };
+}
+
 export function combinePromptScores(
-  today: PromptScoreInput,
-  revise: PromptScoreInput,
+  scores: Readonly<Record<BenchmarkPromptId, PromptScoreInput>>,
   gateFailures: readonly string[],
 ): CombinedPromptScore {
+  const entries = BENCHMARK_PROMPTS.map((definition) => ({
+    definition,
+    score: scores[definition.id],
+  }));
   const components: Record<string, number> = {};
   for (const key of BENCHMARK_COMPONENT_KEYS) {
     components[key] = Math.min(
-      today.components[key] ?? 0,
-      revise.components[key] ?? 0,
+      ...entries.map((entry) => entry.score.components[key] ?? 0),
     );
   }
-  const notes = [
-    `Today plan: ${today.note}`,
-    `Season revision: ${revise.note}`,
-  ];
+  const notes = entries.map(
+    (entry) => `${entry.definition.label}: ${entry.score.note}`,
+  );
   if (gateFailures.length > 0) {
     notes.push(`Hard gates failed: ${gateFailures.join("; ")}.`);
   }
   return {
-    score: Math.round(((today.score + revise.score) / 2) * 10) / 10,
+    score:
+      Math.round(
+        (entries.reduce((sum, entry) => sum + entry.score.score, 0) /
+          Math.max(entries.length, 1)) *
+          10,
+      ) / 10,
     components,
     failed: gateFailures.length > 0,
     note: notes.join(" "),
