@@ -1,5 +1,10 @@
 import { describe, expect, it } from "bun:test";
 import { startOfWeek } from "@killingit/shared";
+import {
+  MAX_COMPLETION_TOKENS,
+  PLAN_MAX_TOKENS,
+  RESCUE_COMPLETION_TOKENS,
+} from "../../../apps/api/src/llm/planBudget.js";
 import { promptRuleLiteral } from "../../../apps/api/src/testFixtures/prompts.js";
 import {
   DAY_CONTRACT,
@@ -12,6 +17,7 @@ import {
 import { parseCurrentBlock } from "./promptBenchmark.js";
 import {
   BENCHMARK_PROMPTS,
+  benchmarkAttempts,
   buildBenchmarkPromptMessages,
   formatBenchmarkPrompt,
   REVISE_SEASON_DATE,
@@ -36,6 +42,24 @@ describe("benchmark prompts", () => {
     expect(reviseSeason).toContain(GLOBAL_PROMPT_RULES);
     expect(reviseSeason).toContain(PLAN_PROMPT_RULES);
     expect(reviseSeason).toContain(SEASON_BLOCK_RULES);
+  });
+
+  /**
+   * The app gives every plan level its plan budget and walks one reasoning
+   * fallback ladder from it. A benchmark prompt with a smaller ceiling or no
+   * reasoning control truncates models and records a coaching failure the app
+   * itself would not produce.
+   */
+  it("walks the app's plan budget and reasoning ladder", () => {
+    for (const definition of BENCHMARK_PROMPTS) {
+      expect(definition.maxTokens).toBe(PLAN_MAX_TOKENS);
+      expect(benchmarkAttempts(definition)).toEqual([
+        { maxTokens: PLAN_MAX_TOKENS, reasoning: { effort: "minimal" } },
+        { maxTokens: PLAN_MAX_TOKENS, reasoning: { effort: "none" } },
+        { maxTokens: MAX_COMPLETION_TOKENS },
+        { maxTokens: RESCUE_COMPLETION_TOKENS },
+      ]);
+    }
   });
 
   it("sends the system prompt and the user prompt the app sends", () => {

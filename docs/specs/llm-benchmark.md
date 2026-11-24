@@ -176,6 +176,15 @@ RUN_ID=2026-11-15-pending bun run benchmark:prompts sync-db
 RUN_ID=... bun run benchmark:prompts report
 ```
 
+Both prompts use the app's own plan budget and reasoning ladder:
+`PLAN_MAX_TOKENS` with minimal reasoning, the same budget with reasoning off,
+`MAX_COMPLETION_TOKENS` without reasoning control, and the
+`RESCUE_COMPLETION_TOKENS` retry, all from `apps/api/src/llm/planBudget.ts` and
+`attemptLadder` in `apps/api/src/llm/resilientCompletion.ts`. A smaller
+benchmark ceiling or a missing reasoning control would let reasoning tokens
+exhaust the budget and record a truncation as a coaching failure the app itself
+would not produce.
+
 `run` writes `models.json`, `raw/*.json` and `results.json`; `judge` is optional
 and writes `judge-scores.json`; `finalize` recovers responses rejected only for
 a warning-level contract issue; `shortlist` prints the top judged models;

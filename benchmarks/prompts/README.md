@@ -34,7 +34,7 @@ holds only the git-ignored run and report artifacts. See ADR 0032.
 
 Each model's score is the mean of its two judged scores (each out of 12.5), and
 every component keeps the weaker of the two prompts, so a category failure in
-either prompt grades the model F. Speed and cost are the sums of both prompt
+either prompt caps the grade at C. Speed and cost are the sums of both prompt
 runs, including retries.
 
 The season revision also has three hard gates. Ability is F when a model:
@@ -52,7 +52,7 @@ are checked mechanically against the current block supplied in the prompt. The
 block comparison ignores the block name and rationale, and compares the focus,
 end date and each week's start date, focus, target load and FTP estimate.
 
-A model that reaches the speed-F limit (20 minutes across both prompts) is
+A model that reaches the speed-F limit (10 minutes across both prompts) is
 stopped, skipped by the judge, and recorded with ability `?` rather than F, so
 it stays ungraded instead of being labelled a failure.
 
