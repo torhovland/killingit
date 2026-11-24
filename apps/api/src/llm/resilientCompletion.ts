@@ -70,7 +70,7 @@ export interface CompletionOptions {
   budget?: CompletionBudget;
 }
 
-interface CompletionAttempt {
+export interface CompletionAttempt {
   maxTokens: number;
   reasoning?: LlmReasoning | undefined;
 }
@@ -187,8 +187,11 @@ export async function completeWithFallbacks(
  * The fallback configurations in the order they are tried. A provider that
  * accepts the reasoning control and the budget normally succeeds on the first
  * one; each later attempt spends a call the athlete pays for.
+ *
+ * Exported so the prompt benchmark calls each model with the same reasoning
+ * ladder the app uses, instead of a second copy that can drift.
  */
-function attemptLadder(maxTokens: number): CompletionAttempt[] {
+export function attemptLadder(maxTokens: number): CompletionAttempt[] {
   const doubled = Math.min(maxTokens * 2, MAX_COMPLETION_TOKENS);
   const ladder: CompletionAttempt[] = [
     { maxTokens, reasoning: { effort: "minimal" } },

@@ -1,6 +1,7 @@
 import { mkdir } from "node:fs/promises";
 import { resolve } from "node:path";
 import type { LlmModel, LlmModelGrade } from "@killingit/shared";
+import type { CompletionAttempt } from "../../../apps/api/src/llm/resilientCompletion.js";
 import { SPEED_F_LIMIT_MS } from "../../../apps/api/src/llm/modelCatalog.js";
 import {
   createOpenRouterProvider,
@@ -21,6 +22,7 @@ import {
 } from "./promptBenchmarkFiles.js";
 import {
   BENCHMARK_PROMPTS,
+  benchmarkAttempts,
   buildBenchmarkPromptMessages,
   type BenchmarkPromptDefinition,
   type BenchmarkPromptId,
@@ -49,17 +51,6 @@ import {
  */
 const PROVIDER_REQUEST_TIMEOUT_MS = 240_000;
 
-function tokensFor(
-  definition: BenchmarkPromptDefinition,
-  attempt: number,
-): number {
-  const overrideKey =
-    definition.id === "today" ? "MAX_TOKENS" : "MAX_TOKENS_REVISE";
-  const override = Number(process.env[overrideKey]);
-  if (Number.isFinite(override) && override > 0) return override;
-  return attempt === 0 ? definition.maxTokens : definition.retryMaxTokens;
-}
-
 /**
  * Calls one model once through the app's `LlmProvider`, recording the same
  * diagnostics the old raw fetch client did: status, finish reason, usage,
@@ -70,7 +61,7 @@ async function callPromptModel(
   apiKey: string,
   model: string,
   messages: readonly BenchmarkPromptMessage[],
-  maxTokens: number,
+  attempt: CompletionAttempt,
   timeoutMs: number,
 ): Promise<PromptAttempt> {
   const started = performance.now();
@@ -86,7 +77,8 @@ async function callPromptModel(
       model,
       messages: llmMessages,
       temperature: 0.2,
-      maxTokens,
+      maxTokens: attempt.maxTokens,
+      reasoning: attempt.reasoning,
     },
     timeoutMs,
   );
@@ -124,8 +116,10 @@ async function runPrompt(
   const attempts: PromptAttempt[] = [];
   let plan: unknown = null;
   let validationErrors: string[] = [];
-
-  for (let attempt = 0; attempt < 2; attempt += 1) {
+  // The app retries only a truncated response or a 400 rejection; any other
+  // provider error ends the call, and an answer that parses but breaks the
+  // contract is judged as the model's answer rather than retried.
+  for (const attempt of benchmarkAttempts(definition)) {
     const remaining = deadline - performance.now();
     if (remaining <= 0) break;
     const timeoutMs = Math.min(
@@ -138,7 +132,7 @@ async function runPrompt(
       apiKey,
       model,
       messages,
-      tokensFor(definition, attempt),
+      attempt,
       timeoutMs,
     );
     attempts.push(result);
@@ -150,7 +144,9 @@ async function runPrompt(
         break;
       }
       validationErrors = errors;
+      break;
     }
+    if (result.finishReason !== "length" && result.httpStatus !== 400) break;
   }
 
   return {

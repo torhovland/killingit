@@ -484,7 +484,7 @@ export async function runPromptBenchmarkReportStage(): Promise<void> {
     not match its contract. ${retries} models needed at least one retry.
     ${results.length - valid} models did not return valid JSON on both prompts;
     they remain in the tables with a score of 0 and their provider error, except
-    the ${expired} models that reached the 20-minute speed-F limit. Those were
+    the ${expired} models that reached the 10-minute speed-F limit. Those were
     stopped and recorded with ability <code>?</code> instead of F, and are
     omitted from scoring.
   </div>
@@ -505,11 +505,11 @@ export async function runPromptBenchmarkReportStage(): Promise<void> {
     12.5 across contract compliance (1.5), fidelity (2.0), design (3.0),
     rationale (2.0), grounding (2.0), and extra, useful detail (2.0). The
     combined score is the mean of the two prompt scores; each component keeps
-    the weaker of the two values, so a failing component in either prompt grades
-    the model F. Time and cost are the sum of both prompt runs, including
+    the weaker of the two values, so a failing component in either prompt caps
+    the grade at C. Time and cost are the sum of both prompt runs, including
     retries. Judge cost: ${judgeModel ? formatCost(judgeCost) : "—"}.
     Ability, speed and cost grades use the same bands as the app catalog; a
-    model stopped at the 20-minute speed-F limit is shown as ability
+    model stopped at the 10-minute speed-F limit is shown as ability
     <code>?</code>.
   </div>
 

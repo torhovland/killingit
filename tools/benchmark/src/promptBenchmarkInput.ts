@@ -1,8 +1,13 @@
 import { z } from "zod";
+import { PLAN_MAX_TOKENS } from "../../../apps/api/src/llm/planBudget.js";
 import {
   buildDailyUpdateMessages,
   buildPlanUpdateMessages,
 } from "../../../apps/api/src/llm/planUpdatePrompt.js";
+import {
+  attemptLadder,
+  type CompletionAttempt,
+} from "../../../apps/api/src/llm/resilientCompletion.js";
 import {
   BENCHMARK_COACHING_SURVEY_ADJUSTMENTS,
   benchmarkBlockPlan,
@@ -42,29 +47,44 @@ export type BenchmarkPromptId = z.infer<typeof benchmarkPromptIdSchema>;
 export interface BenchmarkPromptDefinition {
   id: BenchmarkPromptId;
   label: string;
+  /** The plan output budget the app gives this prompt's plan level. */
   maxTokens: number;
-  retryMaxTokens: number;
 }
 
 /**
  * The two prompts every catalog model answers. Both are built by the app's own
  * prompt builders from the fixture athlete, so a rule, contract or context
  * change reaches the benchmark instead of leaving it on a frozen snapshot.
+ *
+ * The budget is the app's own plan budget: a benchmark run must give every
+ * model the same room the app gives it, or reasoning tokens exhaust the ceiling
+ * and a capable model is graded F for truncation instead of coaching quality.
+ * The run stage walks the app's whole fallback ladder from that budget.
  */
 export const BENCHMARK_PROMPTS: readonly BenchmarkPromptDefinition[] = [
-  {
-    id: "today",
-    label: "Today plan",
-    maxTokens: 8_192,
-    retryMaxTokens: 8_192,
-  },
+  { id: "today", label: "Today plan", maxTokens: PLAN_MAX_TOKENS },
   {
     id: "reviseSeason",
     label: "Season revision",
-    maxTokens: 16_384,
-    retryMaxTokens: 32_768,
+    maxTokens: PLAN_MAX_TOKENS,
   },
 ];
+
+/**
+ * The app's fallback ladder for this prompt, with an optional manual budget
+ * override for experiments. `MAX_TOKENS` and `MAX_TOKENS_REVISE` replace the
+ * base budget; the reasoning fallbacks and the doubled budget still follow.
+ */
+export function benchmarkAttempts(
+  definition: BenchmarkPromptDefinition,
+): CompletionAttempt[] {
+  const overrideKey =
+    definition.id === "today" ? "MAX_TOKENS" : "MAX_TOKENS_REVISE";
+  const override = Number(process.env[overrideKey]);
+  const base =
+    Number.isFinite(override) && override > 0 ? override : definition.maxTokens;
+  return attemptLadder(base);
+}
 
 export interface BenchmarkPromptMessage {
   role: "system" | "user";

@@ -19,6 +19,11 @@ const PRICE_GRADE_LIMITS = {
  * Estimated benchmark cost for a model that has not been called yet. The
  * benchmark runs two prompts (the today plan and a season revision), so the
  * estimate covers both calls.
+ *
+ * The token counts come from the 2026-11-24 runs: about 28,000 prompt tokens
+ * across both prompts and 10,000 completion tokens once reasoning is included.
+ * The smaller 2,400-token completion assumption underpredicted the measured
+ * cost by a median factor of 1.7.
  */
 export function estimateBenchmarkCost(
   promptPricePerMillion: number | null,
@@ -28,8 +33,8 @@ export function estimateBenchmarkCost(
     return null;
   }
   return (
-    ((promptPricePerMillion ?? 0) * 32_000) / 1_000_000 +
-    ((completionPricePerMillion ?? 0) * 2_400) / 1_000_000
+    ((promptPricePerMillion ?? 0) * 28_000) / 1_000_000 +
+    ((completionPricePerMillion ?? 0) * 10_000) / 1_000_000
   );
 }
 

@@ -36,22 +36,30 @@ constraints all derive from that list.
 
 Ability:
 
-- `A+` score >= 11.1
-- `A` score >= 10.5
-- `B` score >= 10.2 (below 10.5)
-- `C` score >= 9.8 (below 10.2)
-- `D` score >= 9.6 (below 9.8)
-- `E` score > 0 (below 9.6)
-- `F` failed, unscoreable, or any benchmark category below half its maximum
+- `A+` score >= 10.6
+- `A` score >= 10.2 (below 10.6)
+- `B` score >= 9.8 (below 10.2)
+- `C` score >= 9.4 (below 9.8)
+- `D` score >= 9.0 (below 9.4)
+- `E` score > 0 (below 9.0)
+- `F` failed or unscoreable
 
 The category maxima are contract 1.5, fidelity 2, design 3, rationale 2,
-grounding 2 and detail 2. The half-category rule overrides the score band, so a
-model with a high total but a very weak category is still `F`.
+grounding 2 and detail 2. A category below half its maximum caps the grade at
+`C`; it no longer forces `F`. The bands and the cap were recalibrated from the
+2026-11-24 runs: the judge's run-to-run change is about 1.3 points, which is
+wider than the old 0.2-point bands, and a hard `F` for one weak component turned
+a third of the failing entries into apparent failures.
 
 Speed (the sum of both benchmark prompts, including retries):
 
-- `A+` < 45 s, `A` < 90 s, `B` < 180 s, `C` < 300 s, `D` < 600 s, `E` < 1200 s,
-  `F` >= 1200 s.
+- `A+` < 60 s, `A` < 120 s, `B` < 180 s, `C` < 240 s, `D` < 300 s, `E` < 600 s,
+  `F` >= 600 s.
+
+The `F` limit matches the app's 300 s completion budget with one retry. A full
+two-prompt answer takes about 166 s at the median, so the old 45 s `A+` cut only
+captured the smallest models and the old 1,200 s `F` limit was never reached by
+the app in practice.
 
 Cost (the measured cost of both benchmark prompts):
 
@@ -59,8 +67,10 @@ Cost (the measured cost of both benchmark prompts):
   `E` < $2.50, `F` >= $2.50.
 
 The cost cuts are calibrated so the measured cost grades roughly match the
-list-price grades: about 58% exact and 88% within one grade on the latest run,
-with the same overall distribution.
+list-price grades: about 52% exact and 96% within one grade on the 2026-11-24
+runs, with the same overall distribution. Lowering the `A+` cut to $0.012
+matches list price slightly better (61% exact); raising it matches worse, because
+a measured cost usually sits below the list-price estimate.
 
 Price grade (used before a model has been benchmarked):
 
@@ -222,7 +232,7 @@ endpoint. `DRY_RUN=1` writes the selection to `models.json` without calling any
 model. The benchmark stages use `BENCHMARK_OPENROUTER_API_KEY`, a dedicated
 key separate from the app's per-account key.
 
-A model that reaches the speed-F limit (`1_200_000` ms across both prompts) is
+A model that reaches the speed-F limit (`600_000` ms across both prompts) is
 stopped and recorded with ability `?` instead of F. It is skipped by the judge
 and remains ungraded, so a timeout never labels a model as an ability failure.
 The season-revision gate also accepts a `coachQuestion` about Atlas in place of

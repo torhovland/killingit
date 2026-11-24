@@ -53,8 +53,12 @@ export const GRADE_ORDER: Record<LlmModelGrade, number> = {
   "?": -1,
 };
 
-/** At or above this total time the speed grade is F. */
-export const SPEED_F_LIMIT_MS = 1_200_000;
+/**
+ * At or above this total time the speed grade is F, and the benchmark stops
+ * waiting. It matches the app's 300 s completion budget with one retry: a model
+ * that cannot answer two prompts inside ten minutes is not usable in the app.
+ */
+export const SPEED_F_LIMIT_MS = 600_000;
 
 export function costGrade(costUsd: number | null | undefined): LlmModelGrade {
   if (costUsd === null || costUsd === undefined) return "?";
@@ -67,14 +71,19 @@ export function costGrade(costUsd: number | null | undefined): LlmModelGrade {
   return "F";
 }
 
-/** Speed is the sum of both benchmark prompts, including retries. */
+/**
+ * Speed is the sum of both benchmark prompts, including retries. The cuts were
+ * recalibrated from the 2026-11-24 runs: a full two-prompt answer takes about
+ * 166 s at the median, so the old 45 s A+ cut captured only the smallest free
+ * models and the 1,200 s F limit sat far beyond the app's own 300 s budget.
+ */
 export function speedGrade(timeMs: number | null | undefined): LlmModelGrade {
   if (timeMs === null || timeMs === undefined) return "?";
-  if (timeMs < 45_000) return "A+";
-  if (timeMs < 90_000) return "A";
+  if (timeMs < 60_000) return "A+";
+  if (timeMs < 120_000) return "A";
   if (timeMs < 180_000) return "B";
-  if (timeMs < 300_000) return "C";
-  if (timeMs < 600_000) return "D";
+  if (timeMs < 240_000) return "C";
+  if (timeMs < 300_000) return "D";
   if (timeMs < SPEED_F_LIMIT_MS) return "E";
   return "F";
 }
@@ -86,11 +95,14 @@ export interface AbilityInput {
 }
 
 /**
- * Ability is the benchmark score band, unless the run failed or any category
- * scored below half of its maximum. A category failure always grades F.
+ * Ability is the benchmark score band. A failed or unscoreable run is F.
  *
- * Score bands: A+ >= 11.1, A >= 10.5, B >= 10.2, C >= 9.8, D >= 9.6,
- * E > 0, F otherwise.
+ * One rubric category below half its maximum caps the grade at C instead of
+ * failing the model outright. The old hard F turned an 8.8 plan with one weak
+ * fidelity score into an ungraded-looking failure, which is why 44 of the 132
+ * judged entries in the 2026-11-24 runs were F for a single component.
+ *
+ * Score bands: A+ >= 10.6, A >= 10.2, B >= 9.8, C >= 9.4, D >= 9.0, E > 0.
  */
 export function abilityGrade({
   score,
@@ -98,20 +110,22 @@ export function abilityGrade({
   failed = false,
 }: AbilityInput): LlmModelGrade {
   if (failed || score === null || score === undefined || score <= 0) return "F";
-  if (categories) {
-    for (const [key, maximum] of Object.entries(BENCHMARK_CATEGORY_MAXIMA)) {
+  if (!categories) return "F";
+  let grade: LlmModelGrade;
+  if (score >= 10.6) grade = "A+";
+  else if (score >= 10.2) grade = "A";
+  else if (score >= 9.8) grade = "B";
+  else if (score >= 9.4) grade = "C";
+  else if (score >= 9.0) grade = "D";
+  else grade = "E";
+  const weakCategory = Object.entries(BENCHMARK_CATEGORY_MAXIMA).some(
+    ([key, maximum]) => {
       const value = categories[key];
-      if (value === undefined || value < maximum / 2) return "F";
-    }
-  } else {
-    return "F";
-  }
-  if (score >= 11.1) return "A+";
-  if (score >= 10.5) return "A";
-  if (score >= 10.2) return "B";
-  if (score >= 9.8) return "C";
-  if (score >= 9.6) return "D";
-  return "E";
+      return value === undefined || value < maximum / 2;
+    },
+  );
+  if (weakCategory && GRADE_ORDER[grade] > GRADE_ORDER.C) return "C";
+  return grade;
 }
 
 export function isDiscouraged(
