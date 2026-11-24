@@ -19,13 +19,15 @@ export type SortKey =
 /** The direction a sort column is applied in. */
 export type SortDirection = "asc" | "desc";
 
-/** The grade minimums and inclusions the model table is filtered by. */
+/** The grade minimums, inclusions and name search the model table is filtered by. */
 export interface LlmModelFilters {
   includeUngraded: boolean;
   showDiscouraged: boolean;
   minAbility: LlmModelGrade;
   minSpeed: LlmModelGrade;
   minCost: LlmModelGrade;
+  /** Part of a model name, matched case-insensitively; empty keeps every name. */
+  nameQuery: string;
 }
 
 function gradeAtLeast(grade: LlmModelGrade, minimum: LlmModelGrade): boolean {
@@ -41,14 +43,25 @@ function gradePasses(
 }
 
 /**
+ * Whether a model's name contains the athlete's search text, ignoring case and
+ * surrounding whitespace. An empty search matches every name.
+ */
+function nameMatchesQuery(name: string, query: string): boolean {
+  const search = query.trim().toLowerCase();
+  return search === "" || name.toLowerCase().includes(search);
+}
+
+/**
  * Applies the catalog filters. "Include ungraded" only lets a "?" through the
- * grade it belongs to; the other grade filters still apply.
+ * grade it belongs to; the other grade filters still apply. The name search is
+ * a plain substring match, so any part of a model name narrows the list.
  */
 export function modelMatchesFilters(
   model: LlmCatalogModel,
   filters: LlmModelFilters,
 ): boolean {
   if (!filters.showDiscouraged && model.discouraged) return false;
+  if (!nameMatchesQuery(model.name, filters.nameQuery)) return false;
   return (
     gradePasses(model.ability, filters.minAbility, filters.includeUngraded) &&
     gradePasses(model.speed, filters.minSpeed, filters.includeUngraded) &&

@@ -12,13 +12,14 @@ import {
   type SortKey,
 } from "./catalogFilters";
 
-/** The documented default filters: ungraded included, discouraged hidden. */
+/** The documented default filters: no search, ungraded included, discouraged hidden. */
 const DEFAULT_FILTERS: LlmModelFilters = {
   includeUngraded: true,
   showDiscouraged: false,
   minAbility: "B",
   minSpeed: "D",
   minCost: "D",
+  nameQuery: "",
 };
 
 /** Sorting starts on ability, strongest first. */

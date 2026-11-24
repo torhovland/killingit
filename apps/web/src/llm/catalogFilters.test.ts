@@ -31,6 +31,7 @@ function filters(overrides: Partial<LlmModelFilters> = {}): LlmModelFilters {
     minAbility: "B",
     minSpeed: "D",
     minCost: "D",
+    nameQuery: "",
     ...overrides,
   };
 }
@@ -75,6 +76,45 @@ describe("modelMatchesFilters", () => {
   it("applies the grade minimums", () => {
     expect(modelMatchesFilters(model({ ability: "C" }), filters())).toBe(false);
     expect(modelMatchesFilters(model({ ability: "B" }), filters())).toBe(true);
+  });
+
+  it("matches a partial model name regardless of case", () => {
+    const claude = model({ name: "Anthropic: Claude Sonnet 4.5" });
+
+    expect(modelMatchesFilters(claude, filters({ nameQuery: "clau" }))).toBe(
+      true,
+    );
+    expect(
+      modelMatchesFilters(claude, filters({ nameQuery: "ANTHROPIC: CLAUDE" })),
+    ).toBe(true);
+    expect(
+      modelMatchesFilters(claude, filters({ nameQuery: "sonnet 4.5" })),
+    ).toBe(true);
+  });
+
+  it("rejects a model whose name does not contain the search text", () => {
+    const claude = model({ name: "Anthropic: Claude Sonnet 4.5" });
+
+    expect(modelMatchesFilters(claude, filters({ nameQuery: "gemini" }))).toBe(
+      false,
+    );
+  });
+
+  it("keeps every model for an empty or whitespace-only search", () => {
+    const claude = model({ name: "Anthropic: Claude Sonnet 4.5" });
+
+    expect(modelMatchesFilters(claude, filters({ nameQuery: "" }))).toBe(true);
+    expect(modelMatchesFilters(claude, filters({ nameQuery: "   " }))).toBe(
+      true,
+    );
+  });
+
+  it("ignores surrounding whitespace in the search text", () => {
+    const claude = model({ name: "Anthropic: Claude Sonnet 4.5" });
+
+    expect(
+      modelMatchesFilters(claude, filters({ nameQuery: " claude " })),
+    ).toBe(true);
   });
 });
 

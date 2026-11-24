@@ -135,14 +135,18 @@ accounts also see a "Last scored" column with each model's `benchmarked_at`
 time in their own time zone. Every grade column is sortable. Filters default
 to:
 
+- Model search = empty (every model)
 - Include ungraded = true
 - Include discouraged = false
 - Ability = B or above
 - Speed = D or above
 - Cost = D or above
 
-The filter bar shows the three grade dropdowns first, then Include ungraded,
-then Include discouraged. Include ungraded only lets a `?` pass the grade it
+The filter bar shows the model search field first, then the three grade
+dropdowns, then Include ungraded, then Include discouraged. The search field
+sits beside the dropdowns and limits the table in real time to models whose name
+contains the typed text, ignoring case and surrounding whitespace; clearing it
+restores every model. Include ungraded only lets a `?` pass the grade it
 belongs to; a model with a `?` ability but an E cost is still hidden when the
 cost filter is B or above. The three dropdowns are one `GradeSelect`, whose
 options come from `LLM_GRADES`; `isLlmModelGrade` validates a select's value
@@ -236,8 +240,8 @@ models so an infrastructure failure is not written as a model failure.
 1. The catalog table contains every OpenRouter model with the grade columns.
 2. A catalog refresh runs at most once per 24 hours, inserts new models and
    retires missing ones.
-3. The Settings page offers one sortable, filterable table and two radio
-   selections, with the documented defaults.
+3. The Settings page offers one sortable, filterable table with a real-time
+   model-name search and two radio selections, with the documented defaults.
 4. Season/block prompts use `season_model`; week/day and day-to-day prompts use
    `daily_model`.
 5. A retired selection is refused with a Settings-page message. A discouraged
