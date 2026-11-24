@@ -1,7 +1,8 @@
 -- Recalibrate the model catalog after the 2026-11-24 benchmark runs.
 --
 -- This is a data migration. It:
---   1. inserts any benchmarked model the target database does not have yet;
+--   1. inserts any benchmarked model the target database does not have yet,
+--      including the models that currently exist only in the production catalog;
 --   2. re-grades ability to the widened score bands (A+ >= 10.6, A >= 10.2,
 --      B >= 9.8, C >= 9.4, D >= 9.0, E > 0), with a single weak rubric category
 --      capping a model at C instead of forcing F;
@@ -10,7 +11,8 @@
 --   4. writes the measured grades from the three 2026-11-24 runs, using the
 --      first successful result per model;
 --   5. copies a graded target onto its aliases;
---   6. fills the estimated cost for any model whose measured cost is unknown;
+--   6. fills the estimated cost for any model whose measured cost is unknown,
+--      and refreshes the estimate for the production-only models;
 --   7. recomputes discouraged.
 --
 -- A row already graded F is left F when it has no fresh measurement: the stored
@@ -148,7 +150,25 @@ VALUES
 ('xiaomi/mimo-v2.6-pro', 'Xiaomi: MiMo-V2.6-Pro', FALSE, FALSE, '?', '?', 'B', 0.021019999999999997, FALSE, 0.44, 0.87, NULL, now(), now(), now()),
 ('z-ai/glm-4.5', 'Z.ai: GLM 4.5', FALSE, FALSE, '?', '?', 'B', 0.0388, FALSE, 0.6, 2.2, NULL, now(), now(), now()),
 ('z-ai/glm-4.6', 'Z.ai: GLM 4.6', FALSE, FALSE, '?', '?', 'B', 0.034, FALSE, 0.5, 2, NULL, now(), now(), now()),
-('z-ai/glm-4.7-flash', 'Z.ai: GLM 4.7 Flash', FALSE, FALSE, '?', '?', 'A+', 0.00568, FALSE, 0.06, 0.4, NULL, now(), now(), now())
+('z-ai/glm-4.7-flash', 'Z.ai: GLM 4.7 Flash', FALSE, FALSE, '?', '?', 'A+', 0.00568, FALSE, 0.06, 0.4, NULL, now(), now(), now()),
+('google/gemini-4-hydrogen', 'Google: Gemini 4 Hydrogen', FALSE, FALSE, '?', '?', 'C', 0.11699999999999999, FALSE, 1.5, 7.5, NULL, now(), now(), now()),
+('unbiased/pareto-26.10-preview', 'Pareto 26.10 Preview', FALSE, FALSE, '?', '?', 'B', 0.054400000000000004, FALSE, 0.8, 3.2, NULL, now(), now(), now()),
+('mistralai/pixtral-large-2502', 'Mistral: Pixtral Large 2502', FALSE, FALSE, '?', '?', 'C', 0.11599999999999999, FALSE, 2, 6, NULL, now(), now(), now()),
+('openai/gpt-6.2-astra', 'OpenAI: GPT-6.2 Astra', FALSE, FALSE, '?', '?', 'E', 0.624, FALSE, 8, 40, NULL, now(), now(), now()),
+('google/gemini-4-neon', 'Google: Gemini 4 Neon', FALSE, FALSE, '?', '?', 'D', 0.23399999999999999, FALSE, 3, 15, NULL, now(), now(), now()),
+('openai/gpt-6.2-astra-pro', 'OpenAI: GPT-6.2 Astra Pro', FALSE, FALSE, '?', '?', 'E', 0.624, FALSE, 8, 40, NULL, now(), now(), now()),
+('openai/gpt-6.2-sol-pro', 'OpenAI: GPT-6.2 Sol Pro', FALSE, FALSE, '?', '?', 'D', 0.156, FALSE, 2, 10, NULL, now(), now(), now()),
+('anthropic/claude-fable-5.2', 'Anthropic: Claude Fable 5.2', FALSE, FALSE, '?', '?', 'E', 0.624, FALSE, 8, 40, NULL, now(), now(), now()),
+('qwen/qwen4-max', 'Qwen: Qwen4 Max', FALSE, FALSE, '?', '?', 'B', 0.08245999999999999, FALSE, 1.42, 4.27, NULL, now(), now(), now()),
+('radixark/daisyrose-27b', 'RadixArk: DaisyRose 27B', FALSE, FALSE, '?', '?', 'A', 0.023, FALSE, 0.15, 1.88, NULL, now(), now(), now()),
+('openai/gpt-6.2-sol', 'OpenAI: GPT-6.2 Sol', FALSE, FALSE, '?', '?', 'D', 0.156, FALSE, 2, 10, NULL, now(), now(), now()),
+('motif-technologies/motif-3', 'Motif Technologies: Motif 3', FALSE, FALSE, '?', '?', 'A', 0.0204, FALSE, 0.3, 1.2, NULL, now(), now(), now()),
+('nex-agi/nex-n2.6', 'Nex AGI: Nex-N2.6', FALSE, FALSE, '?', '?', 'A+', 0.00736, FALSE, 0.12, 0.4, NULL, now(), now(), now()),
+('thinkingmachines/inkling-2-small', 'Thinking Machines: Inkling 2 Small', FALSE, FALSE, '?', '?', 'A', 0.0184, FALSE, 0.3, 1, NULL, now(), now(), now()),
+('baidu/ernie-light-dt-1.0-intl', 'Baidu: ERNIE-Light-DT-1.0', FALSE, FALSE, '?', '?', 'B', 0.07103999999999999, FALSE, 1.13, 3.94, NULL, now(), now(), now()),
+('meta/muse-ember', 'Meta: Muse Ember', FALSE, FALSE, '?', '?', 'A+', 0.0078, FALSE, 0.1, 0.5, NULL, now(), now(), now()),
+('google/gemini-4-carbon', 'Google: Gemini 4 Carbon', FALSE, FALSE, '?', '?', 'D', 0.156, FALSE, 2, 10, NULL, now(), now(), now()),
+('kt/midm-k-3.0-pro', 'KT: Mi:dm K 3.0 Pro', FALSE, FALSE, '?', '?', 'A+', 0.013600000000000001, FALSE, 0.2, 0.8, NULL, now(), now(), now())
 ON CONFLICT ("id") DO NOTHING;
 
 -- 2. Re-grade existing ability bands under the widened cuts.
@@ -349,8 +369,33 @@ SET
     ELSE 'F'
   END,
   "updated_at" = now()
-WHERE "benchmark_cost_usd" IS NULL
-  AND ("prompt_price_per_million" IS NOT NULL OR "completion_price_per_million" IS NOT NULL);
+WHERE (
+    "benchmark_cost_usd" IS NULL
+    AND ("prompt_price_per_million" IS NOT NULL OR "completion_price_per_million" IS NOT NULL)
+  )
+  OR (
+    "benchmark_score" IS NULL
+    AND "id" IN (
+      'google/gemini-4-hydrogen',
+      'unbiased/pareto-26.10-preview',
+      'mistralai/pixtral-large-2502',
+      'openai/gpt-6.2-astra',
+      'google/gemini-4-neon',
+      'openai/gpt-6.2-astra-pro',
+      'openai/gpt-6.2-sol-pro',
+      'anthropic/claude-fable-5.2',
+      'qwen/qwen4-max',
+      'radixark/daisyrose-27b',
+      'openai/gpt-6.2-sol',
+      'motif-technologies/motif-3',
+      'nex-agi/nex-n2.6',
+      'thinkingmachines/inkling-2-small',
+      'baidu/ernie-light-dt-1.0-intl',
+      'meta/muse-ember',
+      'google/gemini-4-carbon',
+      'kt/midm-k-3.0-pro'
+    )
+  );
 
 -- 7. Recompute discouraged under the same rule the application uses.
 UPDATE "llm_models"
