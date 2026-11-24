@@ -2,7 +2,8 @@
 --
 -- This is a data migration. It:
 --   1. inserts any benchmarked model the target database does not have yet,
---      including the models that currently exist only in the production catalog;
+--      including every model the production catalog gained after the 2026-10-31
+--      seed;
 --   2. re-grades ability to the widened score bands (A+ >= 10.6, A >= 10.2,
 --      B >= 9.8, C >= 9.4, D >= 9.0, E > 0), with a single weak rubric category
 --      capping a model at C instead of forcing F;
@@ -12,7 +13,7 @@
 --      first successful result per model;
 --   5. copies a graded target onto its aliases;
 --   6. fills the estimated cost for any model whose measured cost is unknown,
---      and refreshes the estimate for the production-only models;
+--      and refreshes it for every model added since the catalog seed;
 --   7. recomputes discouraged.
 --
 -- A row already graded F is left F when it has no fresh measurement: the stored
@@ -168,7 +169,13 @@ VALUES
 ('baidu/ernie-light-dt-1.0-intl', 'Baidu: ERNIE-Light-DT-1.0', FALSE, FALSE, '?', '?', 'B', 0.07103999999999999, FALSE, 1.13, 3.94, NULL, now(), now(), now()),
 ('meta/muse-ember', 'Meta: Muse Ember', FALSE, FALSE, '?', '?', 'A+', 0.0078, FALSE, 0.1, 0.5, NULL, now(), now(), now()),
 ('google/gemini-4-carbon', 'Google: Gemini 4 Carbon', FALSE, FALSE, '?', '?', 'D', 0.156, FALSE, 2, 10, NULL, now(), now(), now()),
-('kt/midm-k-3.0-pro', 'KT: Mi:dm K 3.0 Pro', FALSE, FALSE, '?', '?', 'A+', 0.013600000000000001, FALSE, 0.2, 0.8, NULL, now(), now(), now())
+('kt/midm-k-3.0-pro', 'KT: Mi:dm K 3.0 Pro', FALSE, FALSE, '?', '?', 'A+', 0.013600000000000001, FALSE, 0.2, 0.8, NULL, now(), now(), now()),
+('google/gemini-omni-1.1-flash', 'Google: Gemini Omni 1.1 Flash', FALSE, FALSE, '?', '?', 'C', 0.132, FALSE, 1.5, 9, NULL, now(), now(), now()),
+('google/gemini-omni-1.2-flash', 'Google: Gemini Omni 1.2 Flash', FALSE, FALSE, '?', '?', 'C', 0.132, FALSE, 1.5, 9, NULL, now(), now(), now()),
+('openrouter/auto-code', 'Auto Code', FALSE, FALSE, '?', '?', '?', NULL, FALSE, NULL, NULL, NULL, now(), now(), now()),
+('ricursiveai/ripple-65b-preview', 'Ricursive: Ripple 65B Preview', FALSE, FALSE, '?', '?', 'A+', 0.0058, FALSE, 0.1, 0.3, NULL, now(), now(), now()),
+('z-ai/glm-5.3-flashx-legal', 'Z.ai: GLM 5.3 FlashX Legal', FALSE, FALSE, '?', '?', 'A', 0.02286, FALSE, 0.37, 1.25, NULL, now(), now(), now()),
+('tencent/hy4', 'Tencent: Hy4', FALSE, FALSE, '?', '?', 'A', 0.02426, FALSE, 0.42, 1.25, NULL, now(), now(), now())
 ON CONFLICT ("id") DO NOTHING;
 
 -- 2. Re-grade existing ability bands under the widened cuts.
@@ -375,21 +382,36 @@ WHERE (
   )
   OR (
     "benchmark_score" IS NULL
+    AND ("prompt_price_per_million" IS NOT NULL OR "completion_price_per_million" IS NOT NULL)
     AND "id" IN (
       'google/gemini-4-hydrogen',
+      'google/gemini-omni-1.1-flash',
       'unbiased/pareto-26.10-preview',
+      'inclusionai/ling-3.2-flash:free',
+      'liquid/lfm-3-1.7b',
       'mistralai/pixtral-large-2502',
       'openai/gpt-6.2-astra',
+      'liquid/lfm-3-1.7b:free',
+      'thinkingmachines/inkling-2-mini',
+      'tencent/hy4-flash',
       'google/gemini-4-neon',
+      'google/gemini-omni-1.2-flash',
       'openai/gpt-6.2-astra-pro',
       'openai/gpt-6.2-sol-pro',
+      'inclusionai/ling-3.0-tiny',
       'anthropic/claude-fable-5.2',
+      'openrouter/auto-code',
       'qwen/qwen4-max',
       'radixark/daisyrose-27b',
+      'ricursiveai/ripple-65b-preview',
+      'z-ai/glm-5.3-flashx-legal',
       'openai/gpt-6.2-sol',
       'motif-technologies/motif-3',
       'nex-agi/nex-n2.6',
+      'particle-ai/particle-1:free',
+      'tencent/hy4',
       'thinkingmachines/inkling-2-small',
+      'baidu/ernie-5.5-flash-preview:free',
       'baidu/ernie-light-dt-1.0-intl',
       'meta/muse-ember',
       'google/gemini-4-carbon',
