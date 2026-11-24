@@ -643,6 +643,23 @@ describe("averagePromptJudges", () => {
     expect(averaged.judge.costUsd).toBeCloseTo(0.03);
   });
 
+  it("keeps the reference verdict when every pass failed", () => {
+    const failed = {
+      ...judge(0, "Could not score."),
+      judge: { ...judge(0, "").judge, error: "bad response" },
+    };
+    const averaged = averagePromptJudges([failed, failed]);
+    expect(averaged.score).toBe(0);
+    expect(averaged.judge.error).toBe("bad response");
+    expect(averaged.judge.attempts).toBe(2);
+  });
+
+  it("rejects an empty pass list", () => {
+    expect(() => averagePromptJudges([])).toThrow(
+      "cannot average zero judge passes",
+    );
+  });
+
   it("ignores a failed pass but keeps its cost", () => {
     const failed = {
       ...judge(0, "Could not score."),
