@@ -19,6 +19,13 @@ export function withSeasonGoalCoverage<T extends { season: SeasonPlan }>(
   context: PlanContextInput,
 ): z.ZodType<T> {
   return schema.superRefine((value, ctx) => {
+    if (value.season.startDate !== context.today) {
+      ctx.addIssue({
+        code: "custom",
+        message: `The season must start on today's date (${context.today}).`,
+        path: ["season", "startDate"],
+      });
+    }
     addProblems(
       ctx,
       seasonGoalProblems(value.season, {

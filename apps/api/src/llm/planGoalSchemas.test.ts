@@ -91,6 +91,16 @@ describe("goal coverage refinements", () => {
     ).toBe(true);
   });
 
+  it("requires a fresh season to start on today's date", () => {
+    const late = season();
+    late.startDate = "2026-10-28";
+    const result = withSeasonGoalCoverage(
+      seasonPlanUpdateSchema,
+      context(),
+    ).safeParse({ season: late });
+    expect(result.success).toBe(false);
+  });
+
   it("rejects a season whose block has no sub-goals", () => {
     const missing = season();
     delete missing.blocks[0]?.subGoals;
