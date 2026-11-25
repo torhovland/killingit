@@ -17,11 +17,11 @@ const STAGES = [
 const PROMPT_BENCHMARK_HELP = `Usage:
   bun run benchmark:prompts <stage>
 
-Two-prompt model-catalog benchmark. Both prompts are built by the app's real
+Three-prompt model-catalog benchmark. Every prompt is built by the app's real
 prompt builders and called through the app's LlmProvider.
 
 Stages:
-  run         Call both prompts for the selected models and write the run
+  run         Call every prompt for the selected models and write the run
               directory (models.json, raw/*.json, results.json).
   judge       Score every valid response with the judge model. Optional: the
               run stage alone produces results, and judging can run later.
@@ -45,11 +45,13 @@ Environment:
   SORT=slowest                 Order slowest first by previous time.
   DRY_RUN=1                    Write models.json and make no calls.
   RETRY_FAILED=1               Re-run only unfinished prompts.
-  ONLY_VALID=1                 Judge only models valid on both prompts.
+  ONLY_VALID=1                 Judge only models valid on every prompt.
   RETRY_FAILED_JUDGES=1        Re-judge unusable judge responses.
   SKIP_FAILED=1                Leave unfinished models at their previous grade.
   SKIP_REFRESH=1               Do not refresh the catalog before recording.
   JUDGE_MODEL=<id>             Judge model (default anthropic/claude-haiku-5.5).
+  JUDGE_PASSES=<n>             Judge passes to average (default 1; use 3 for a
+                               stable small comparison).
   MAX_TOKENS, MAX_TOKENS_REVISE, TIMEOUT_MS, LIMIT
   SCORES_FILE, USE_OVERRIDES=0 Report overrides.
 
@@ -77,8 +79,8 @@ function stage(command: string): (() => Promise<void>) | null {
 }
 
 /**
- * Runs one stage of the two-prompt benchmark. The stage is an explicit argument
- * so the CLI keeps the old scripts' separation while sharing one entry point.
+ * Runs one stage of the catalog benchmark. The stage is an explicit argument so
+ * the CLI keeps the old scripts' separation while sharing one entry point.
  */
 export async function runPromptBenchmarkCli(
   argv: readonly string[],

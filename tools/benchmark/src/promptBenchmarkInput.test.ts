@@ -24,14 +24,21 @@ import {
   REVISE_WEEK_START,
   TODAY_BENCHMARK_DATE,
 } from "./promptBenchmarkInput.js";
+import {
+  GOAL_STEERING_TODAY,
+  GOAL_STEERING_WEEK_START,
+} from "./promptBenchmarkSeasonFixture.js";
 
 const today = formatBenchmarkPrompt(buildBenchmarkPromptMessages("today"));
 const reviseSeason = formatBenchmarkPrompt(
   buildBenchmarkPromptMessages("reviseSeason"),
 );
+const goalSteering = formatBenchmarkPrompt(
+  buildBenchmarkPromptMessages("goalSteering"),
+);
 
 describe("benchmark prompts", () => {
-  it("builds both prompts from the app's current plan rules", () => {
+  it("builds every prompt from the app's current plan rules", () => {
     expect(today).toContain(GLOBAL_PROMPT_RULES);
     expect(today).toContain(PLAN_PROMPT_RULES);
     expect(today).toContain(promptRuleLiteral("WEEK_OUTLINE_RULES"));
@@ -42,6 +49,9 @@ describe("benchmark prompts", () => {
     expect(reviseSeason).toContain(GLOBAL_PROMPT_RULES);
     expect(reviseSeason).toContain(PLAN_PROMPT_RULES);
     expect(reviseSeason).toContain(SEASON_BLOCK_RULES);
+    expect(goalSteering).toContain(GLOBAL_PROMPT_RULES);
+    expect(goalSteering).toContain(PLAN_PROMPT_RULES);
+    expect(goalSteering).toContain(SEASON_BLOCK_RULES);
   });
 
   /**
@@ -79,6 +89,11 @@ describe("benchmark prompts", () => {
     expect(reviseSeason).toContain(
       "make sure one session has the date 2026-11-01",
     );
+    expect(startOfWeek(GOAL_STEERING_TODAY)).toBe(GOAL_STEERING_WEEK_START);
+    expect(goalSteering).toContain(`Today's date: ${GOAL_STEERING_TODAY}`);
+    expect(goalSteering).toContain(
+      "make sure one session has the date 2027-07-04",
+    );
   });
 
   it("supplies the current block the revision gates compare against", () => {
@@ -92,6 +107,13 @@ describe("benchmark prompts", () => {
     expect(reviseSeason).toContain("Atlas Mountain Race on 28 February 2027");
   });
 
+  it("puts the at-risk gravel goal from the season test in the prompt", () => {
+    expect(goalSteering).toContain("100 km gravel race");
+    expect(goalSteering).toContain("3:10 or faster");
+    expect(goalSteering).toMatch(/FTP[: ]+247 W/);
+    expect(goalSteering).toContain("Every workout this week felt easy");
+  });
+
   /**
    * The snapshot is the benchmark input. A change to any prompt rule, contract
    * or fixture changes it, so a stale benchmark prompt cannot pass CI unnoticed.
@@ -101,5 +123,6 @@ describe("benchmark prompts", () => {
   it("matches the committed benchmark-input snapshot", () => {
     expect(today).toMatchSnapshot();
     expect(reviseSeason).toMatchSnapshot();
+    expect(goalSteering).toMatchSnapshot();
   });
 });

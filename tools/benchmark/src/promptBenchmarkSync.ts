@@ -5,6 +5,7 @@ import {
 } from "../../../apps/api/src/llm/modelCatalog.js";
 import { recordBenchmarkGrade } from "./catalogBenchmark.js";
 import { readJsonFile, readJsonFileOr } from "./jsonFile.js";
+import { gradedPromptCostUsd, gradedPromptTimeMs } from "./promptBenchmark.js";
 import {
   logPromptBenchmark,
   promptBenchmarkRunDirectory,
@@ -56,7 +57,7 @@ export async function runPromptBenchmarkSyncStage(): Promise<void> {
         id: result.id,
         name: result.name,
         score: null,
-        timeMs: result.totalTimeMs,
+        timeMs: gradedPromptTimeMs(result),
         costUsd: null,
         categories: null,
         failed: false,
@@ -77,8 +78,8 @@ export async function runPromptBenchmarkSyncStage(): Promise<void> {
       id: result.id,
       name: result.name,
       score: invalid ? 0 : judged.score,
-      timeMs: result.totalTimeMs,
-      costUsd: result.totalCostUsd,
+      timeMs: gradedPromptTimeMs(result),
+      costUsd: gradedPromptCostUsd(result),
       categories: invalid ? null : judged.components,
       failed,
     });

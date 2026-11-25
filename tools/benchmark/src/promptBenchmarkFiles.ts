@@ -6,7 +6,7 @@ const REPO_ROOT = resolve(import.meta.dir, "../../..");
 const PROMPT_BENCHMARK_DEFAULT_RUN_ID = "2026-10-31-two-prompts";
 
 /**
- * The two-prompt benchmark's run and report directories. They stay under
+ * The catalog benchmark's run and report directories. They stay under
  * `benchmarks/prompts/` as git-ignored local output; see `benchmarks/README.md`.
  */
 const PROMPT_BENCHMARK_RUNS_ROOT = resolve(

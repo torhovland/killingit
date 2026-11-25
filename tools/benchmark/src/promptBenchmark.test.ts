@@ -1,10 +1,14 @@
 import { describe, expect, it } from "bun:test";
+import type { PromptModelResult } from "./promptBenchmarkTypes.js";
 import {
+  averagePromptJudges,
   checkReviseSeasonGates,
   combinePromptScores,
   extractJson,
   fatalPromptErrors,
   filterByCostGrades,
+  gradedPromptCostUsd,
+  gradedPromptTimeMs,
   filterByMinimumAbility,
   isWarningOnlyPromptError,
   parseJudge,
@@ -146,6 +150,80 @@ function validRevisePlan(): Record<string, unknown> {
     nextWeek: null,
     nextBlock: null,
     diet: { goal: "Reach 18 % body fat.", assessment: "On track." },
+    bodyMetrics: [],
+  };
+}
+
+const GOAL_WEEK_DATES = [
+  "2027-06-28",
+  "2027-06-29",
+  "2027-06-30",
+  "2027-07-01",
+  "2027-07-02",
+  "2027-07-03",
+  "2027-07-04",
+];
+
+const GOAL_NEXT_WEEK_DATES = [
+  "2027-07-05",
+  "2027-07-06",
+  "2027-07-07",
+  "2027-07-08",
+  "2027-07-09",
+  "2027-07-10",
+  "2027-07-11",
+];
+
+function goalWeek(startDate: string, dates: readonly string[]) {
+  return {
+    startDate,
+    focus: "Gravel build.",
+    rationale: "Build toward the gravel race.",
+    estimatedFtpWatts: 250,
+    sessions: dates.map((date, index) =>
+      daySession(date, DAYS[index] ?? "Monday"),
+    ),
+  };
+}
+
+function validGoalPlan(): Record<string, unknown> {
+  return {
+    season: {
+      goal: "Ride the gravel race in 3:10.",
+      rationale: "Build toward the gravel goal.",
+      startDate: "2026-11-22",
+      endDate: "2027-08-29",
+      blocks: [
+        {
+          name: "Gravel build",
+          focus: "Build gravel durability.",
+          startDate: "2027-06-21",
+          endDate: "2027-08-07",
+          weekCount: 7,
+        },
+      ],
+    },
+    block: {
+      name: "Gravel build",
+      focus: "Build gravel durability.",
+      rationale: "The remaining weeks raise the load.",
+      startDate: "2027-06-21",
+      endDate: "2027-08-07",
+      weeks: [
+        {
+          number: 3,
+          startDate: "2027-07-05",
+          focus: "Raise the load.",
+          targetLoad: "8 hours; about 430 TSS.",
+          estimatedFtpWatts: 250,
+        },
+      ],
+    },
+    week: goalWeek("2027-06-28", GOAL_WEEK_DATES),
+    today: benchmarkDaySession("2027-07-04"),
+    tomorrow: benchmarkDaySession("2027-07-05"),
+    nextWeek: goalWeek("2027-07-05", GOAL_NEXT_WEEK_DATES),
+    diet: { goal: "No diet goal.", assessment: "Not tracked." },
     bodyMetrics: [],
   };
 }
@@ -293,6 +371,53 @@ describe("validatePromptPlan for the season revision", () => {
   });
 });
 
+describe("validatePromptPlan for goal steering", () => {
+  it("accepts the block-and-week revision contract", () => {
+    expect(validatePromptPlan("goalSteering", validGoalPlan())).toEqual([]);
+  });
+
+  it("rejects a moved block start, a null next week and a wrong date", () => {
+    const plan = validGoalPlan();
+    const block = plan.block as Record<string, unknown>;
+    block.startDate = "2027-06-28";
+    plan.nextWeek = null;
+    plan.today = benchmarkDaySession("2027-07-03");
+    const errors = validatePromptPlan("goalSteering", plan);
+    expect(errors).toContain("block: startDate must stay 2027-06-21");
+    expect(errors).toContain("nextWeek must be an object");
+    expect(errors).toContain("today date must be 2027-07-04");
+  });
+
+  it("requires tomorrow to be one of the next week's sessions", () => {
+    const plan = validGoalPlan();
+    const nextWeek = plan.nextWeek as Record<string, unknown>;
+    nextWeek.sessions = GOAL_NEXT_WEEK_DATES.map((date, index) =>
+      daySession(
+        date === "2027-07-05" ? "2027-07-06" : date,
+        DAYS[index] ?? "Monday",
+      ),
+    );
+    expect(validatePromptPlan("goalSteering", plan)).toContain(
+      "tomorrow must be one of nextWeek's sessions",
+    );
+  });
+
+  it("requires seven sessions in the current and next week", () => {
+    const plan = validGoalPlan();
+    const week = plan.week as Record<string, unknown>;
+    week.sessions = (week.sessions as unknown[]).slice(0, 6);
+    const nextWeek = plan.nextWeek as Record<string, unknown>;
+    nextWeek.sessions = (nextWeek.sessions as unknown[]).slice(0, 6);
+    const errors = validatePromptPlan("goalSteering", plan);
+    expect(errors).toContain(
+      "week: sessions must contain exactly seven sessions",
+    );
+    expect(errors).toContain(
+      "nextWeek: sessions must contain exactly seven sessions",
+    );
+  });
+});
+
 describe("parseCurrentBlock", () => {
   it("reads the block and its weeks from the prompt", () => {
     const baseline = parseCurrentBlock(PROMPT_FIXTURE);
@@ -435,30 +560,173 @@ describe("combinePromptScores", () => {
 
   it("averages the scores and keeps the weaker component", () => {
     const combined = combinePromptScores(
-      { score: 11.4, components: fullComponents, note: "Strong." },
       {
-        score: 9.2,
-        components: { ...fullComponents, design: 1.8 },
-        note: "Weaker design.",
+        today: { score: 11.4, components: fullComponents, note: "Strong." },
+        reviseSeason: {
+          score: 9.2,
+          components: { ...fullComponents, design: 1.8 },
+          note: "Weaker design.",
+        },
+        goalSteering: {
+          score: 10.6,
+          components: { ...fullComponents, design: 2.4 },
+          note: "Steers the goal.",
+        },
       },
       [],
     );
-    expect(combined.score).toBe(10.3);
+    expect(combined.score).toBe(10.4);
     expect(combined.components.design).toBe(1.8);
     expect(combined.components.contract).toBe(1.5);
     expect(combined.failed).toBe(false);
     expect(combined.note).toContain("Today plan: Strong.");
     expect(combined.note).toContain("Season revision: Weaker design.");
+    expect(combined.note).toContain("Goal steering: Steers the goal.");
   });
 
   it("fails when a hard gate fails", () => {
     const combined = combinePromptScores(
-      { score: 11.4, components: fullComponents, note: "Strong." },
-      { score: 11.2, components: fullComponents, note: "Strong too." },
+      {
+        today: { score: 11.4, components: fullComponents, note: "Strong." },
+        reviseSeason: {
+          score: 11.2,
+          components: fullComponents,
+          note: "Strong too.",
+        },
+        goalSteering: {
+          score: 10.8,
+          components: fullComponents,
+          note: "Also strong.",
+        },
+      },
       ["the response never mentions Atlas"],
     );
     expect(combined.failed).toBe(true);
     expect(combined.note).toContain("Hard gates failed");
+  });
+});
+
+describe("averagePromptJudges", () => {
+  const judge = (score: number, note: string) => ({
+    score,
+    components: {
+      contract: 1.3,
+      fidelity: 1.6,
+      design: 2.2,
+      rationale: 1.4,
+      grounding: 1.5,
+      detail: 1.3,
+    },
+    note,
+    judge: {
+      model: "judge",
+      attempts: 1,
+      timeMs: 100,
+      costUsd: 0.01,
+      error: null,
+    },
+  });
+
+  it("averages the component values and keeps the closest note", () => {
+    const averaged = averagePromptJudges([
+      judge(9.1, "Low pass."),
+      judge(9.3, "Middle pass."),
+      judge(9.6, "High pass."),
+    ]);
+    expect(averaged.components.contract).toBe(1.3);
+    expect(averaged.score).toBe(
+      Math.round((1.3 + 1.6 + 2.2 + 1.4 + 1.5 + 1.3) * 10) / 10,
+    );
+    expect(averaged.note).toContain("Middle pass.");
+    expect(averaged.note).toContain("Mean of 3 judge passes");
+    expect(averaged.judge.attempts).toBe(3);
+    expect(averaged.judge.costUsd).toBeCloseTo(0.03);
+  });
+
+  it("keeps the reference verdict when every pass failed", () => {
+    const failed = {
+      ...judge(0, "Could not score."),
+      judge: { ...judge(0, "").judge, error: "bad response" },
+    };
+    const averaged = averagePromptJudges([failed, failed]);
+    expect(averaged.score).toBe(0);
+    expect(averaged.judge.error).toBe("bad response");
+    expect(averaged.judge.attempts).toBe(2);
+  });
+
+  it("rejects an empty pass list", () => {
+    expect(() => averagePromptJudges([])).toThrow(
+      "cannot average zero judge passes",
+    );
+  });
+
+  it("ignores a failed pass but keeps its cost", () => {
+    const failed = {
+      ...judge(0, "Could not score."),
+      judge: { ...judge(0, "").judge, error: "bad response", costUsd: 0.02 },
+    };
+    const averaged = averagePromptJudges([judge(9.4, "Good pass."), failed]);
+    expect(averaged.score).toBeGreaterThan(0);
+    expect(averaged.judge.error).toBeNull();
+    expect(averaged.judge.costUsd).toBeCloseTo(0.03);
+    expect(averaged.note).toContain("Mean of 1 judge pass");
+  });
+});
+
+describe("graded prompt totals", () => {
+  const result: PromptModelResult = {
+    id: "model",
+    name: "Model",
+    requestedAt: "2026-11-24T00:00:00.000Z",
+    ok: true,
+    totalTimeMs: 600,
+    totalCostUsd: 0.6,
+    prompts: {
+      today: {
+        prompt: "today",
+        attempts: [],
+        retryNeeded: false,
+        ok: true,
+        totalTimeMs: 100,
+        totalCostUsd: 0.1,
+        plan: {},
+        validationErrors: [],
+      },
+      reviseSeason: {
+        prompt: "reviseSeason",
+        attempts: [],
+        retryNeeded: false,
+        ok: true,
+        totalTimeMs: 200,
+        totalCostUsd: 0.2,
+        plan: {},
+        validationErrors: [],
+      },
+      goalSteering: {
+        prompt: "goalSteering",
+        attempts: [],
+        retryNeeded: false,
+        ok: true,
+        totalTimeMs: 300,
+        totalCostUsd: 0.3,
+        plan: {},
+        validationErrors: [],
+      },
+    },
+  };
+
+  it("excludes the goal prompt from the speed and cost totals", () => {
+    expect(gradedPromptTimeMs(result)).toBe(300);
+    expect(gradedPromptCostUsd(result)).toBeCloseTo(0.3);
+  });
+
+  it("returns null when a graded prompt is missing", () => {
+    const partial: PromptModelResult = {
+      ...result,
+      prompts: {},
+    };
+    expect(gradedPromptTimeMs(partial)).toBeNull();
+    expect(gradedPromptCostUsd(partial)).toBeNull();
   });
 });
 

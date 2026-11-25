@@ -5,7 +5,7 @@ import {
 } from "./promptBenchmarkInput.js";
 
 /**
- * The stored shapes of the two-prompt benchmark's run files. Every stage reads
+ * The stored shapes of the catalog benchmark's run files. Every stage reads
  * one of these files through `readJsonFile` in `jsonFile.ts`, so a renamed field
  * or a hand-edited file fails with the file name instead of reaching the report
  * as an unchecked cast.
@@ -66,7 +66,11 @@ export const promptModelResultSchema = z.object({
   id: z.string(),
   name: z.string(),
   requestedAt: z.string(),
-  prompts: z.record(benchmarkPromptIdSchema, promptRunResultSchema),
+  /**
+   * A partial record because a run written before the goal-steering prompt
+   * existed has only the two core prompts, and report/sync must still read it.
+   */
+  prompts: z.partialRecord(benchmarkPromptIdSchema, promptRunResultSchema),
   ok: z.boolean(),
   /**
    * True when the model reached the speed-F limit and stays ungraded. Absent in
@@ -119,7 +123,8 @@ export const promptJudgeScoreSchema = z.object({
   id: z.string(),
   failed: z.boolean(),
   gates: reviseSeasonGatesSchema.nullable(),
-  prompts: z.record(benchmarkPromptIdSchema, promptJudgeSchema),
+  /** Partial for the same reason as a model result's prompts record. */
+  prompts: z.partialRecord(benchmarkPromptIdSchema, promptJudgeSchema),
 });
 
 export type PromptJudgeScore = z.infer<typeof promptJudgeScoreSchema>;

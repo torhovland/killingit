@@ -16,6 +16,16 @@ import {
   benchmarkSeasonPlan,
   benchmarkWeekPlan,
 } from "./promptBenchmarkFixture.js";
+import {
+  GOAL_STEERING_BLOCK_START,
+  GOAL_STEERING_NEXT_WEEK_START,
+  goalSteeringBlockPlan,
+  goalSteeringPlanContext,
+  goalSteeringSeasonPlan,
+  goalSteeringTodayPlan,
+  goalSteeringTomorrowPlan,
+  goalSteeringWeekPlan,
+} from "./promptBenchmarkSeasonFixture.js";
 
 /** The day the daily-update benchmark plans for; a Friday in week 2. */
 export const TODAY_BENCHMARK_DATE = "2026-10-30";
@@ -39,8 +49,35 @@ export const REVISE_SEASON_TOP_LEVEL_KEYS = [
   "bodyMetrics",
 ] as const;
 
-/** The ids of the two prompts, as stored in `results.json` and `raw/*.json`. */
-export const benchmarkPromptIdSchema = z.enum(["today", "reviseSeason"]);
+/**
+ * The block-and-week revision returns these top-level keys: the season summary
+ * is refreshed with the block, the new week and tomorrow are created, and there
+ * is no next block because the current block runs through the race build.
+ */
+export const GOAL_STEERING_TOP_LEVEL_KEYS = [
+  "season",
+  "block",
+  "week",
+  "today",
+  "tomorrow",
+  "nextWeek",
+  "diet",
+  "bodyMetrics",
+] as const;
+
+/**
+ * The prompts that still define the catalog's speed and cost grades. They are
+ * the two calls the app makes on an ordinary day, so a third ability prompt
+ * does not make a model look slower or more expensive than the app sees it.
+ */
+export const GRADED_BENCHMARK_PROMPT_IDS = ["today", "reviseSeason"] as const;
+
+/** The ids of the three prompts, as stored in `results.json` and `raw/*.json`. */
+export const benchmarkPromptIdSchema = z.enum([
+  "today",
+  "reviseSeason",
+  "goalSteering",
+]);
 
 export type BenchmarkPromptId = z.infer<typeof benchmarkPromptIdSchema>;
 
@@ -52,8 +89,8 @@ export interface BenchmarkPromptDefinition {
 }
 
 /**
- * The two prompts every catalog model answers. Both are built by the app's own
- * prompt builders from the fixture athlete, so a rule, contract or context
+ * The three prompts every catalog model answers. They are built by the app's
+ * own prompt builders from the fixture athletes, so a rule, contract or context
  * change reaches the benchmark instead of leaving it on a frozen snapshot.
  *
  * The budget is the app's own plan budget: a benchmark run must give every
@@ -66,6 +103,11 @@ export const BENCHMARK_PROMPTS: readonly BenchmarkPromptDefinition[] = [
   {
     id: "reviseSeason",
     label: "Season revision",
+    maxTokens: PLAN_MAX_TOKENS,
+  },
+  {
+    id: "goalSteering",
+    label: "Goal steering",
     maxTokens: PLAN_MAX_TOKENS,
   },
 ];
@@ -115,6 +157,31 @@ export function buildBenchmarkPromptMessages(
       season: benchmarkSeasonPlan(),
       block: benchmarkBlockPlan(),
       week: benchmarkWeekPlan(TODAY_BENCHMARK_DATE),
+    });
+  }
+  if (id === "goalSteering") {
+    return buildPlanUpdateMessages({
+      ...goalSteeringPlanContext(),
+      season: goalSteeringSeasonPlan(),
+      block: goalSteeringBlockPlan(),
+      week: goalSteeringWeekPlan(),
+      todayPlan: goalSteeringTodayPlan(),
+      tomorrow: goalSteeringTomorrowPlan(),
+      nextWeek: null,
+      nextBlock: null,
+      revision: {
+        season: false,
+        block: true,
+        week: true,
+        day: true,
+        tomorrow: true,
+        nextWeek: true,
+        nextBlock: false,
+        progress: true,
+      },
+      blockStartDate: GOAL_STEERING_BLOCK_START,
+      reviseBlock: true,
+      nextWeekStartDate: GOAL_STEERING_NEXT_WEEK_START,
     });
   }
   const season = benchmarkSeasonPlan();

@@ -51,17 +51,19 @@ grounding 2 and detail 2. A category below half its maximum caps the grade at
 wider than the old 0.2-point bands, and a hard `F` for one weak component turned
 a third of the failing entries into apparent failures.
 
-Speed (the sum of both benchmark prompts, including retries):
+Speed (the sum of the two core benchmark prompts, including retries):
 
 - `A+` < 60 s, `A` < 120 s, `B` < 180 s, `C` < 240 s, `D` < 300 s, `E` < 600 s,
   `F` >= 600 s.
 
-The `F` limit matches the app's 300 s completion budget with one retry. A full
-two-prompt answer takes about 166 s at the median, so the old 45 s `A+` cut only
-captured the smallest models and the old 1,200 s `F` limit was never reached by
-the app in practice.
+The `F` limit matches the app's 300 s completion budget with one retry. The
+goal-steering prompt is excluded from speed and cost, because it adds ability
+coverage rather than an extra call the app makes on an ordinary day. A full
+two-core-prompt answer takes about 166 s at the median, so the old 45 s `A+` cut
+only captured the smallest models and the old 1,200 s `F` limit was never
+reached by the app in practice.
 
-Cost (the measured cost of both benchmark prompts):
+Cost (the measured cost of the two core benchmark prompts):
 
 - `A+` < $0.015, `A` < $0.04, `B` < $0.10, `C` < $0.15, `D` < $0.35,
   `E` < $2.50, `F` >= $2.50.
@@ -174,16 +176,19 @@ is discouraged and that the athlete should choose another model first.
 
 ### Benchmark upkeep
 
-The prompts benchmark runs two prompts per model: the daily update for
-2026-10-30 and a drastic season revision on 2026-11-01. Both are built by the
-app's real prompt builders from a fixture athlete, so a rule, contract or
-context change reaches the benchmark; a snapshot test pins the built text, so a
-prompt change fails the test suite until the snapshot is deliberately updated.
-Ability is F when a model never mentions Atlas, leaves block 1 unchanged, or
-changes block 1's start date (2026-10-19), and speed and cost are the sum of
-both prompt runs. The definitions and the fixture live in
-`tools/benchmark/src/promptBenchmarkInput.ts` and
-`promptBenchmarkFixture.ts`; the scoring and the catalog queries and grade
+The prompts benchmark runs three prompts per model: the daily update for
+2026-10-30, a drastic season revision on 2026-11-01, and a goal-steering refresh
+on 2027-07-04 from the full-season test where the 3:10 gravel goal is slipping.
+All are built by the app's real prompt builders from fixture athletes, so a
+rule, contract or context change reaches the benchmark; a snapshot test pins the
+built text, so a prompt change fails the test suite until the snapshot is
+deliberately updated. Ability is the mean of the three judged scores. Ability is
+F when a model never mentions Atlas, leaves block 1 unchanged, or changes block
+1's start date (2026-10-19); speed and cost are the sum of the two core prompt
+runs. The definitions and the fixtures live in
+`tools/benchmark/src/promptBenchmarkInput.ts`,
+`promptBenchmarkFixture.ts` and `promptBenchmarkSeasonFixture.ts`; the scoring
+and the catalog queries and grade
 writes the benchmark needs live in the same workspace, together with the
 `run`, `judge`, `finalize`, `shortlist`, `sync-db` and `report` stages
 (`tools/benchmark/src/promptBenchmark.ts`, the `promptBenchmark*` modules and
@@ -198,7 +203,7 @@ The benchmark can run only the models that still have `?` in ability or speed:
 PENDING_ONLY=1 RUN_ID=2026-11-15-pending \
   bun run benchmark:prompts run
 
-# 2. Judge both returned JSON documents with Haiku (optional)
+# 2. Judge every returned JSON document with Haiku (optional)
 RUN_ID=2026-11-15-pending bun run benchmark:prompts judge
 
 # 3. Save the grades into llm_models
@@ -232,9 +237,10 @@ endpoint. `DRY_RUN=1` writes the selection to `models.json` without calling any
 model. The benchmark stages use `BENCHMARK_OPENROUTER_API_KEY`, a dedicated
 key separate from the app's per-account key.
 
-A model that reaches the speed-F limit (`600_000` ms across both prompts) is
-stopped and recorded with ability `?` instead of F. It is skipped by the judge
-and remains ungraded, so a timeout never labels a model as an ability failure.
+A model that reaches the speed-F limit (`600_000` ms across the two core
+prompts) is stopped and recorded with ability `?` instead of F. It is skipped by
+the judge and remains ungraded, so a timeout never labels a model as an ability
+failure. The goal-steering prompt is not called for that model.
 The season-revision gate also accepts a `coachQuestion` about Atlas in place of
 a changed block 1; the judge still rewards the preferred full Atlas replan. A
 block plan whose name, focus or rationale never mentions Atlas is treated by
@@ -242,7 +248,7 @@ the judge as a strong hint that the revision is weak.
 
 If a run is interrupted by a provider limit, `RETRY_FAILED=1` re-runs only the
 unfinished prompts, `ONLY_VALID=1 RETRY_FAILED_JUDGES=1` judges the models that
-finished both prompts, and `SKIP_FAILED=1 SKIP_REFRESH=1` records only those
+finished every prompt, and `SKIP_FAILED=1 SKIP_REFRESH=1` records only those
 models so an infrastructure failure is not written as a model failure.
 
 ## Acceptance criteria

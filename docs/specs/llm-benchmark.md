@@ -14,12 +14,13 @@ builders:
 
 - the **plan comparison** runs the real four-level plan generation and its
   new-week refresh for a list of models; and
-- the **two-prompt catalog benchmark** sends the daily-update prompt and the
-  season-revision prompt to every catalog model and grades them.
+- the **three-prompt catalog benchmark** sends the daily-update prompt, the
+  season-revision prompt and the goal-steering prompt to every catalog model
+  and grades them.
 
 The first model in a plan-comparison run is the benchmark; every other model is
-compared with its cost, time and plan quality. The two-prompt benchmark fills
-the model catalog's ability, speed and cost grades.
+compared with its cost, time and plan quality. The catalog benchmark fills the
+model catalog's ability, speed and cost grades.
 
 ## Scope
 
@@ -44,8 +45,8 @@ the model catalog's ability, speed and cost grades.
    `PLAN_MAX_TOKENS = 16_384`, with fallback attempts up to 32,768 and a
    4,096-token compatibility attempt for providers that reject a large
    `max_tokens`.
-6. A two-prompt mode with explicit `run`, `judge`, `finalize`, `shortlist`,
-   `sync-db` and `report` stages. The run stage calls both prompts through the
+6. A three-prompt mode with explicit `run`, `judge`, `finalize`, `shortlist`,
+   `sync-db` and `report` stages. The run stage calls every prompt through the
    app's `LlmProvider`, judging is an optional stage, and the models are selected
    from the catalog or the environment exactly as before. Its prompt builders,
    validators, score gates, catalog queries and report renderer all live in the
@@ -56,7 +57,7 @@ the model catalog's ability, speed and cost grades.
 
 - Automatic judging of the **plan comparison's** plan quality. That mode's
   quality is a human/agent assessment recorded in `scores.json` and the report;
-  the two-prompt catalog benchmark has its own automatic `judge` stage.
+  the catalog benchmark has its own automatic `judge` stage.
 - Weather/daylight-sensitive scenarios: the benchmark does not load a location
   so runs are independent of network weather providers.
 - The completed-period summary and post-build activity-review calls. They do not
@@ -86,11 +87,11 @@ the model catalog's ability, speed and cost grades.
    no benchmark CLI and no benchmark-only module. See ADR 0032.
 10. `bun run benchmark:llm -- --help` and `bun run benchmark:prompts -- --help`
     both print their usage without a key, database or spend.
-11. The two-prompt mode keeps its run artefacts under
+11. The catalog benchmark keeps its run artefacts under
     `benchmarks/prompts/runs/<RUN_ID>/` (`models.json`, `raw/*.json`,
     `results.json`, `judge-scores.json`) and its HTML report under
     `benchmarks/prompts/reports/<RUN_ID>.html`; both directories stay ignored.
-12. Running the two-prompt mode through the plan comparison's `LlmProvider`
+12. Running the catalog benchmark through the plan comparison's `LlmProvider`
     keeps the recorded status, finish reason, usage, cost, raw text and parse
     error per attempt, so the existing judge, finalize, report and sync stages
     read a run unchanged.
@@ -105,16 +106,19 @@ the model catalog's ability, speed and cost grades.
 `results.json`, `raw/*.json`, `judge-scores.json`, `sources.json`,
 `overrides.json` and the plan comparison's `metadata.json`, `results.json` and
 `scores.json` all have a fixed JSON shape. Each shape is a Zod schema in
-`tools/benchmark/src/promptBenchmarkTypes.ts` (two-prompt benchmark) or
+`tools/benchmark/src/promptBenchmarkTypes.ts` (catalog benchmark) or
 `tools/benchmark/src/types.ts` (plan comparison), and every exported type is
 `z.infer` of its schema. Reads go through `readJsonFile` in
 `tools/benchmark/src/jsonFile.ts`, which names the file and the offending field
 when validation fails.
 
-The resume stages need a partial file to be usable: `run` and `judge` reuse a
-stored model only when both prompts are present, so an entry written for the
-superseded flat results format or a model judged on one prompt is skipped and
-run again. `readJsonEntries` applies the same schema per entry for that filter.
+The resume stages need a partial file to be usable. A model's `prompts` record
+is partial, so a run written before the goal-steering prompt existed still
+parses: `run` reuses every stored prompt that is valid and calls only the
+missing one. A model is skipped entirely only when all prompts have a valid
+response, and `judge` requires all prompts because it cannot score a missing
+answer. An entry written for the superseded flat results format is dropped, and
+`readJsonEntries` applies the same schema per entry for that filter.
 The other stages are strict, because the file is their whole input: a corrupt
 `results.json` or `judge-scores.json` fails `report`, `shortlist`, `sync-db` and
 `finalize` instead of rendering a table or recording a grade that a silent zero
@@ -160,9 +164,9 @@ Configuration:
 - `--report-only <dir>` — rebuild `report.md` from an existing run without
   calling any model.
 
-### Two-prompt catalog benchmark
+### Three-prompt catalog benchmark
 
-The two-prompt stages read `BENCHMARK_OPENROUTER_API_KEY`, a dedicated key
+The catalog benchmark stages read `BENCHMARK_OPENROUTER_API_KEY`, a dedicated key
 separate from the plan comparison's `BENCHMARK_API_KEY`, so catalog spend stays
 apart from the app's per-account key.
 
@@ -176,7 +180,7 @@ RUN_ID=2026-11-15-pending bun run benchmark:prompts sync-db
 RUN_ID=... bun run benchmark:prompts report
 ```
 
-Both prompts use the app's own plan budget and reasoning ladder:
+Every prompt uses the app's own plan budget and reasoning ladder:
 `PLAN_MAX_TOKENS` with minimal reasoning, the same budget with reasoning off,
 `MAX_COMPLETION_TOKENS` without reasoning control, and the
 `RESCUE_COMPLETION_TOKENS` retry, all from `apps/api/src/llm/planBudget.ts` and
@@ -184,6 +188,35 @@ Both prompts use the app's own plan budget and reasoning ladder:
 benchmark ceiling or a missing reasoning control would let reasoning tokens
 exhaust the budget and record a truncation as a coaching failure the app itself
 would not produce.
+
+The goal-steering prompt is built from the moment in the full-season test when
+the 3:10 gravel goal is slipping: Sunday 2027-07-04, seven weeks before the
+race, with a compliant athlete at about 247 W FTP and 31 CTL after a block that
+only prescribed 215-280 TSS weeks and a weekly note saying every workout felt
+easy. The judge is given the harness's independent course model as ground
+truth, recognises that 3:10 needs about 281 W in a group, and rewards a candid
+read of the gap plus a materially more ambitious safe block rather than another
+timid week. It is the prompt that distinguishes a model which steers from one
+that merely repeats the existing plan.
+
+Ability is the mean of all three judged prompt scores. Speed and cost remain the
+sum of the two core app prompts, so the extra ability call does not make a model
+look slower or more expensive than the app sees it. The speed-F limit still
+stops on the core prompts; a model that reaches it is not asked the
+goal-steering prompt and stays ungraded.
+
+The judge moves by more than a point between single passes, which is wider than
+the gap between capable models. `JUDGE_PASSES=3` averages three passes per
+prompt (the note comes from the pass closest to the mean), and a stronger
+`JUDGE_MODEL` such as `anthropic/claude-opus-5.5` is materially more stable for
+a small comparison. The default stays one Haiku pass because a full-catalog run
+multiplies the judge spend by the number of passes.
+
+The current ability bands were calibrated on the two core prompts. The
+goal-steering task is newer and harder, so the three-prompt mean sits lower and
+the absolute grade is not comparable until a full catalog run recalibrates the
+bands. A run that adds the third prompt should compare raw scores and relative
+order, and should not sync the catalog on the old bands.
 
 `run` writes `models.json`, `raw/*.json` and `results.json`; `judge` is optional
 and writes `judge-scores.json`; `finalize` recovers responses rejected only for
@@ -195,13 +228,14 @@ HTML preview. The detailed model selection, resume and grading variables are in
 ## Artifact policy
 
 `benchmarks/llm-coach/runs/` and its PDF summaries are source-controlled
-snapshots. The two-prompt benchmark's output is not: `benchmarks/prompts/runs/`
+snapshots. The catalog benchmark's output is not: `benchmarks/prompts/runs/`
 and `benchmarks/prompts/reports/` are ignored by git, and the generated
 `<RUN_ID>.html`/`.pdf` reports are local previews to regenerate rather than
-commit. Its input is not a committed prompt file: both prompts are built by the
-app's prompt builders from the fixture athlete in
-`tools/benchmark/src/promptBenchmarkFixture.ts`, and a snapshot test pins the
-text so a prompt change is reviewed rather than silently ignored. See
+commit. Its input is not a committed prompt file: every prompt is built by the
+app's prompt builders from the fixture athletes in
+`tools/benchmark/src/promptBenchmarkFixture.ts` and
+`tools/benchmark/src/promptBenchmarkSeasonFixture.ts`, and a snapshot test pins
+the text so a prompt change is reviewed rather than silently ignored. See
 `benchmarks/README.md`.
 
 ## Data and privacy
