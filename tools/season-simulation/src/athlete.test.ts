@@ -180,7 +180,27 @@ describe("activity generation", () => {
       profile: ATHLETE,
       id: 9,
     });
-    expect(activity.analysis?.text).toContain("Test result: FTP 249 W");
+    expect(activity.analysis?.text).toContain(
+      "Test result: race rehearsal completed at 204 W normalized power",
+    );
+  });
+
+  it("names a fuelling test as a fuelling result, not an FTP test", () => {
+    const activity = buildSessionActivity({
+      session: session({
+        title: "Long ride fuelling test",
+        description: "Test your carbohydrate intake over four hours.",
+        durationMinutes: 240,
+        estimatedTss: 180,
+      }),
+      capability: { ftpWatts: 252, runThresholdSecPerKm: 330 },
+      profile: ATHLETE,
+      id: 12,
+    });
+    expect(activity.analysis?.text).toContain(
+      "Test result: fuelling plan completed",
+    );
+    expect(activity.analysis?.text).not.toContain("FTP");
   });
 
   it("recognises an explicitly included time trial in a description", () => {
