@@ -29,6 +29,52 @@ export const bodyMetricEstimateSchema = z.object({
 export type BodyMetricEstimate = z.infer<typeof bodyMetricEstimateSchema>;
 
 /**
+ * How important a dated goal is when goals compete for the same weeks. All
+ * goals default to A; the coach may rank one lower when the athlete says so or
+ * the coaching situation justifies it.
+ */
+const goalPrioritySchema = z.enum(["A", "B", "C"]);
+
+export type GoalPriority = z.infer<typeof goalPrioritySchema>;
+
+/** One dated goal the coach plans the season around. */
+const seasonGoalSchema = z.object({
+  /** A short name the athlete would recognise. */
+  title: z.string().trim().min(1).max(120),
+  /** The date the goal is achieved, normally the event or target date. */
+  date: planDateSchema,
+  priority: goalPrioritySchema,
+  /** The outcome the coach is planning toward, in the athlete's terms. */
+  target: z.string().trim().min(1),
+});
+
+export type SeasonGoal = z.infer<typeof seasonGoalSchema>;
+
+/**
+ * What a block does for one goal that is still ahead. `build` develops the
+ * goal, `maintain` keeps the qualities it needs, and `accept-decline` says
+ * plainly that the block prioritises another goal and what that costs.
+ */
+const blockSubGoalRoleSchema = z.enum(["build", "maintain", "accept-decline"]);
+
+export type BlockSubGoalRole = z.infer<typeof blockSubGoalRoleSchema>;
+
+/** One coach-defined goal milestone inside a block. */
+const blockSubGoalSchema = z.object({
+  /** The title of the matching goal in the season's `goals` list. */
+  goalTitle: z.string().trim().min(1).max(120),
+  /** The matching goal's date, so a goal title cannot drift between levels. */
+  goalDate: planDateSchema,
+  role: blockSubGoalRoleSchema,
+  /** A measurable milestone the coach believes this block can reach. */
+  target: z.string().trim().min(1),
+  /** The date inside this block by which the target should be reached. */
+  byDate: planDateSchema,
+});
+
+export type BlockSubGoal = z.infer<typeof blockSubGoalSchema>;
+
+/**
  * One block in the season plan. `weekCount` is the planned length; the
  * detailed weeks live in the current block plan while that block is active.
  */
@@ -38,6 +84,11 @@ export const seasonBlockSummarySchema = z.object({
   startDate: planDateSchema,
   endDate: planDateSchema,
   weekCount: z.number().int().positive(),
+  /**
+   * What the block does for every goal still ahead. Missing on plans stored
+   * before the goal ledger existed; a generated season always carries it.
+   */
+  subGoals: z.array(blockSubGoalSchema).optional(),
   /**
    * The coach's expected weight and body fat at the end of this block. Null or
    * missing when diet advice is off, no goal was stated, or the plan predates
@@ -59,6 +110,11 @@ export const seasonPlanSchema = z.object({
   introduction: z.string().min(1).nullable().optional(),
   startDate: planDateSchema,
   endDate: planDateSchema,
+  /**
+   * Every dated goal the coach is planning around, in date order. Missing on
+   * plans stored before the goal ledger existed.
+   */
+  goals: z.array(seasonGoalSchema).optional(),
   blocks: z.array(seasonBlockSummarySchema).min(1),
   /** The coach's explanation of the season's shape and training science. */
   rationale: z.string().min(1),
@@ -115,6 +171,11 @@ export const blockPlanSchema = z.object({
   startDate: planDateSchema,
   endDate: planDateSchema,
   weeks: z.array(blockWeekSummarySchema).min(1),
+  /**
+   * What this block does for every goal still ahead. It matches the season
+   * block summary; missing on plans stored before the goal ledger existed.
+   */
+  subGoals: z.array(blockSubGoalSchema).optional(),
   /** The coach's explanation of this block's purpose and progression. */
   rationale: z.string().min(1),
   /** The athlete's estimated FTP at the current point in the block. */

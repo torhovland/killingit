@@ -114,8 +114,8 @@ const DAILY_UPDATE_SYSTEM_PROMPT = promptSections(
   GLOBAL_PROMPT_RULES,
   PLAN_PROMPT_RULES,
   "Update today's session, the rest of the current week, and tomorrow's session for an amateur athlete.",
-  "Revise the remaining sessions so the week stays coherent with the block's focus and the athlete's current fatigue, keeping every week session, including today and tomorrow, as a short outline. Include a rationale for today's session and for the week's overall structure.",
-  "Also provide a suggested workout or rest for tomorrow, consistent with the revised week and the block's focus.",
+  "Revise the remaining sessions so the week stays coherent with the block's focus, its sub-goals and the athlete's current fatigue, keeping every week session, including today and tomorrow, as a short outline. Name the block sub-goals the week advances in the week's focus and rationale. Include a rationale for today's session and for the week's overall structure.",
+  "Also provide a suggested workout or rest for tomorrow, consistent with the revised week, the block's focus and its sub-goals.",
   WEEK_SHAPE_RULES,
   TODAY_IN_WEEK_RULE,
   COMPLETED_SESSION_RULES,
@@ -134,8 +134,8 @@ const WEEKLY_UPDATE_SYSTEM_PROMPT = promptSections(
   GLOBAL_PROMPT_RULES,
   PLAN_PROMPT_RULES,
   "Create the week starting on the supplied week start date and revise the block plan for an amateur athlete.",
-  "The new week must fit the block's focus and progression. Include a rationale for the week and for the revised block.",
-  "Revise the block's weeks and target loads where the athlete's progress or recent training requires it. Keep the block's name, focus, and dates unless a change is clearly justified. Do not change the season plan.",
+  "The new week must fit the block's focus, its sub-goals and its progression. Name the block sub-goals the week advances in the week's focus and rationale. Include a rationale for the week and for the revised block.",
+  "Revise the block's weeks and target loads where the athlete's progress or recent training requires it. Keep the block's name, focus, dates and structured sub-goals unless the goal situation clearly requires a change; the block's sub-goals must match its season summary. Do not change the season plan.",
   WEEK_SHAPE_RULES,
   PAST_SESSION_RULES,
   COMPLETION_SLACK_RULES,
@@ -275,9 +275,9 @@ function planUpdateSystemPrompt(levels: PlanUpdateResponseLevels): string {
     "You receive the complete current plan at every level: the season, the current block, the current week, today's session, tomorrow's session when one has been planned, the next week when one has been planned, and the next block when one has been planned.",
     `The revision request lists the levels that need to change. Return every level in the contract, so the saved plan always has a coherent season, block, week and day:
 - Keep the season, block, week, today, tomorrow, next week and next block exactly as supplied unless the request names them, except for "dietProgress": always refresh the diet progress target on every level you return from the latest measurements. Keep the season's "introduction" exactly as supplied, so a refresh never reintroduces the coach. Only the "dietProgress" objects change when the request refreshes progress without revising the training. Keep a level that is null and not requested as null.
-- When the current block is revised, return the revised block, a revised current week that fits it, and today's detailed session. Keep the current block's start date when the request says to keep it; otherwise start the new block on the supplied block start date. When a completed week review or its answer is supplied, use that feedback to adjust the block's progression. Update the season block summaries only when the revised block changes them.
-- When the season is refreshed, keep the blocks that ended before today exactly as supplied, keep the current block's existing start date, re-plan the rest of the season from the current block, and return the detailed current block.
-- When the current week is revised, change the remaining sessions so the week stays coherent with the block's focus and the athlete's current fatigue. Keep every week session, including today and tomorrow, as a short outline, with the detailed prescription only in the "today" and "tomorrow" day objects. If only today's session is revised, update today's week outline while keeping the rest of the week as supplied.
+- When the current block is revised, return the revised block, a revised current week that fits it, and today's detailed session. Keep the current block's start date when the request says to keep it; otherwise start the new block on the supplied block start date. Keep or update the block's structured "subGoals" to match the season summary and the goals still ahead. When a completed week review or its answer is supplied, use that feedback to adjust the block's progression. Update the season block summaries only when the revised block changes them.
+- When the season is refreshed, keep the blocks that ended before today exactly as supplied. Keep the current block's existing start date when that block is still in progress; when the stored current block has already ended, treat it as history and start the new current block on the supplied block start date. Re-plan the rest of the season from the current block and return the detailed current block. Keep the season's "goals" current and give every remaining block its "subGoals" for every goal still ahead.
+- When the current week is revised, change the remaining sessions so the week stays coherent with the block's focus, its sub-goals and the athlete's current fatigue. Name the block sub-goals the week advances in the week's focus and rationale. Keep every week session, including today and tomorrow, as a short outline, with the detailed prescription only in the "today" and "tomorrow" day objects. If only today's session is revised, update today's week outline while keeping the rest of the week as supplied.
 - If the current block is revised, or the current week is re-planned under a next block that starts tomorrow, keep today's session unchanged unless the request also revises today.
 - When tomorrow is requested, return it and make sure its outline is the matching session in the current week or, when it falls in the next week, in the next week. Respect every weather preference and daylight constraint.
 - When the next week is requested, start it on the supplied next week start date and give it ${SEVEN_SESSIONS_CLAUSE}. When the next block is requested, start it on the supplied next block start date and put it in "nextBlock"; update "season" so its block summaries include it. If the block that starts tomorrow falls inside the current week, re-plan the remaining days of the current week under that next block and keep today's session.
@@ -300,12 +300,13 @@ function revisionInstructions(
 ): string[] {
   const lines = ["Revision request:"];
   if (input.revision.season) {
+    const currentBlockEnded = input.block.endDate < input.today;
     lines.push(
-      `- Refresh the season and the current block in place. The current block must start on ${input.blockStartDate ?? input.block.startDate} and keep the blocks that ended before today unchanged. Return the remaining season in "season" and the detailed current block in "block".`,
+      `- Refresh the season and the current block in place. The ${currentBlockEnded ? "new current block" : "current block"} must start on ${input.blockStartDate ?? input.block.startDate} and keep the blocks that ended before today unchanged${currentBlockEnded ? "; the stored current block has ended, so it is history and the new block starts on the Monday of the current week" : ""}. Keep the season's "goals" current and give every remaining block its "subGoals" for every goal still ahead. Return the remaining season in "season" and the detailed current block in "block".`,
     );
   } else if (input.revision.block && input.reviseBlock) {
     lines.push(
-      `- Revise the current block in place: keep its start date (${input.blockStartDate ?? input.block.startDate}) and update its weeks and target loads where the completed week's review or the athlete's feedback requires it. Return it in "block" and update the season's block summaries if they change.`,
+      `- Revise the current block in place: keep its start date (${input.blockStartDate ?? input.block.startDate}) and update its weeks and target loads where the completed week's review or the athlete's feedback requires it. Keep its "subGoals" consistent with the season summary and the goals still ahead. Return it in "block" and update the season's block summaries if they change.`,
     );
   } else if (input.revision.block) {
     lines.push(
@@ -479,7 +480,7 @@ function buildWeeklyUpdatePrompt(input: WeeklyUpdateInput): string {
     "",
     ...formatSeasonAndBlock(input.season, input.block),
     "",
-    "Create the new week and revise this block.",
+    "Create the new week and revise this block. Name the block sub-goals the week advances, and keep the block's sub-goals consistent with its season summary.",
     jsonTopLevelKeys(["week", "block", "bodyMetrics"]),
   ].join("\n");
 }

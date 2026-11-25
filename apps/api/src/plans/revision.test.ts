@@ -424,6 +424,68 @@ describe("mergeSeasonAndBlock", () => {
     ).toThrow(/moved the current block's start date/);
   });
 
+  it("accepts a refresh when the stored current block has ended", () => {
+    const current = makeCurrentSeason();
+    const endedCurrent: CoachPlan = {
+      ...current,
+      block: {
+        ...current.block,
+        startDate: "2026-10-21",
+        endDate: "2026-10-24",
+      },
+      season: {
+        ...current.season,
+        blocks: current.season.blocks.map((entry) =>
+          entry.startDate === "2026-10-21"
+            ? { ...entry, endDate: "2026-10-24" }
+            : entry,
+        ),
+      },
+    };
+    const update: CoachPlan = makePlan({
+      season: makeSeason({
+        goal: "Run a faster marathon.",
+        introduction: null,
+        startDate: "2026-10-25",
+        endDate: "2027-04-01",
+        blocks: [
+          {
+            name: "Base",
+            focus: "Aerobic",
+            startDate: "2026-10-01",
+            endDate: "2026-10-20",
+            weekCount: 3,
+          },
+          {
+            name: "Build",
+            focus: "Threshold",
+            startDate: "2026-10-25",
+            endDate: "2026-11-15",
+            weekCount: 3,
+          },
+          {
+            name: "Peak",
+            focus: "Race pace",
+            startDate: "2026-11-16",
+            endDate: "2027-04-01",
+            weekCount: 20,
+          },
+        ],
+      }),
+      block: makeBlock({ startDate: "2026-10-25", endDate: "2026-11-15" }),
+    });
+
+    const plan = mergeSeasonAndBlock(
+      endedCurrent,
+      update,
+      makeFlags({ season: true, block: true }),
+      "2026-10-25",
+    );
+
+    expect(plan.block.startDate).toBe("2026-10-25");
+    expect(plan.season.blocks[1]?.endDate).toBe("2026-10-24");
+  });
+
   it("takes the returned block and season on a block revision", () => {
     const current = makeCurrentSeason();
     const update: CoachPlan = {

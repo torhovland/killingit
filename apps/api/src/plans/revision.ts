@@ -249,7 +249,7 @@ export function mergeSeasonAndBlock(
           );
     const block = update.block ?? current.block;
     if (update.season !== undefined && update.block !== undefined) {
-      assertRefreshedSeason(season, block, today, current.block.startDate);
+      assertRefreshedSeason(season, block, today, current.block);
     }
     return { ...current, season, block };
   }
@@ -427,13 +427,27 @@ function assertRefreshedSeason(
   season: SeasonPlan,
   block: BlockPlan,
   today: string,
-  currentBlockStartDate: string,
+  currentBlock: BlockPlan,
 ): void {
   const remaining = season.blocks.filter((entry) => entry.endDate >= today);
   const first = remaining[0];
-  if (first === undefined || first.startDate !== currentBlockStartDate) {
+  if (currentBlock.endDate >= today) {
+    // The stored block is still in progress, so a refresh has to keep its
+    // original start date rather than replacing it with one starting today.
+    if (first === undefined || first.startDate !== currentBlock.startDate) {
+      throw new PlanValidationError(
+        "The coach returned a season refresh that moved the current block's start date.",
+      );
+    }
+  } else if (
+    first === undefined ||
+    first.startDate > today ||
+    first.endDate < today
+  ) {
+    // The stored block ended before today. The refresh may start a new block,
+    // but it must cover today rather than leaving the current day unplanned.
     throw new PlanValidationError(
-      "The coach returned a season refresh that moved the current block's start date.",
+      "The coach returned a season refresh that does not cover today with a current block.",
     );
   }
   const last = remaining[remaining.length - 1];
@@ -442,10 +456,7 @@ function assertRefreshedSeason(
       "The coach returned a season refresh that does not cover the rest of the season.",
     );
   }
-  if (
-    block.startDate !== currentBlockStartDate ||
-    block.endDate !== first.endDate
-  ) {
+  if (block.startDate !== first.startDate || block.endDate !== first.endDate) {
     throw new PlanValidationError(
       "The coach returned a block refresh that does not match the remaining season.",
     );

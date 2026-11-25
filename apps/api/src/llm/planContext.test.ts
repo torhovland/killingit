@@ -38,7 +38,7 @@ function input(overrides: Partial<PlanContextInput> = {}): PlanContextInput {
 }
 
 describe("formatPlanContext", () => {
-  it("lists the athlete's upcoming goals and events", () => {
+  it("keeps past goals and races but not past trips", () => {
     const text = formatPlanContext(
       input({
         events: [
@@ -47,6 +47,18 @@ describe("formatPlanContext", () => {
             endDate: null,
             title: "Past race",
             kind: "race",
+          },
+          {
+            startDate: "2026-10-19",
+            endDate: "2026-10-20",
+            title: "Past goal",
+            kind: "goal",
+          },
+          {
+            startDate: "2026-10-18",
+            endDate: "2026-10-19",
+            title: "Past trip",
+            kind: "trip",
           },
           {
             startDate: "2027-03-14",
@@ -65,9 +77,11 @@ describe("formatPlanContext", () => {
     ).join("\n");
 
     expect(text).toContain("Dated goals and events the athlete stated:");
+    expect(text).toContain("- 2026-10-20 (race, past): Past race");
+    expect(text).toContain("- 2026-10-19 → 2026-10-20 (goal, past): Past goal");
     expect(text).toContain("- 2027-03-14 (race): Oslo Marathon");
     expect(text).toContain("- 2026-10-23 → 2026-10-25 (trip): Camp");
-    expect(text).not.toContain("Past race");
+    expect(text).not.toContain("Past trip");
   });
 
   it("attaches a comment to the activity it describes", () => {
@@ -624,6 +638,73 @@ describe("formatPlanContext", () => {
 
     expect(text).toContain("Activity comments:");
     expect(text).toContain("- Activity 99: An older session.");
+  });
+
+  it("renders the season goal ledger and each block's sub-goals", () => {
+    const subGoal = {
+      goalTitle: "100 km gravel race",
+      goalDate: "2027-08-22",
+      role: "build" as const,
+      target: "3 h ride with race fuelling",
+      byDate: "2027-07-18",
+    };
+    const season = formatSeasonPlan({
+      goal: "Half marathon, then gravel",
+      startDate: "2026-11-22",
+      endDate: "2027-08-29",
+      rationale: "Build both goals.",
+      goals: [
+        {
+          title: "Sub-2:00 half marathon",
+          date: "2027-05-23",
+          priority: "A",
+          target: "Under 2:00",
+        },
+        {
+          title: "100 km gravel race",
+          date: "2027-08-22",
+          priority: "A",
+          target: "3:10 or faster",
+        },
+      ],
+      blocks: [
+        {
+          name: "Gravel build",
+          focus: "Build gravel durability.",
+          startDate: "2027-06-21",
+          endDate: "2027-08-07",
+          weekCount: 7,
+          subGoals: [subGoal],
+        },
+      ],
+    });
+    expect(season).toContain(
+      "- 2027-05-23 (A): Sub-2:00 half marathon — Under 2:00",
+    );
+    expect(season).toContain(
+      "   - 2027-08-22 100 km gravel race [build]: 3 h ride with race fuelling (by 2027-07-18)",
+    );
+
+    const block = formatBlockPlan({
+      name: "Gravel build",
+      focus: "Build gravel durability.",
+      startDate: "2027-06-21",
+      endDate: "2027-08-07",
+      rationale: "Build toward the gravel race.",
+      subGoals: [subGoal],
+      weeks: [
+        {
+          number: 1,
+          startDate: "2027-06-21",
+          focus: "Start the build.",
+          targetLoad: "5 hours",
+        },
+      ],
+    });
+    expect(block).toContain("Sub-goals:");
+    expect(block).toContain(
+      "- 2027-08-22 100 km gravel race [build]: 3 h ride with race fuelling (by 2027-07-18)",
+    );
   });
 
   it("renders stored diet progress at every plan level", () => {

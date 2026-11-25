@@ -110,6 +110,20 @@ function validRevisePlan(): Record<string, unknown> {
       rationale: "Atlas is the next goal.",
       startDate: "2026-10-26",
       endDate: "2027-08-29",
+      goals: [
+        {
+          title: "Atlas Mountain Race",
+          date: "2027-02-28",
+          priority: "A",
+          target: "Finish",
+        },
+        {
+          title: "Paris-Brest-Paris",
+          date: "2027-08-22",
+          priority: "A",
+          target: "Finish comfortably",
+        },
+      ],
       blocks: [
         {
           name: "Atlas build",
@@ -117,6 +131,22 @@ function validRevisePlan(): Record<string, unknown> {
           startDate: "2026-10-26",
           endDate: "2026-12-25",
           weekCount: 9,
+          subGoals: [
+            {
+              goalTitle: "Atlas Mountain Race",
+              goalDate: "2027-02-28",
+              role: "build",
+              target: "Build winter durability",
+              byDate: "2026-12-25",
+            },
+            {
+              goalTitle: "Paris-Brest-Paris",
+              goalDate: "2027-08-22",
+              role: "maintain",
+              target: "Keep the long ride ticking over",
+              byDate: "2026-12-25",
+            },
+          ],
         },
       ],
     },
@@ -126,6 +156,22 @@ function validRevisePlan(): Record<string, unknown> {
       rationale: "Eight weeks to Atlas.",
       startDate: "2026-10-26",
       endDate: "2026-12-25",
+      subGoals: [
+        {
+          goalTitle: "Atlas Mountain Race",
+          goalDate: "2027-02-28",
+          role: "build",
+          target: "Build winter durability",
+          byDate: "2026-12-25",
+        },
+        {
+          goalTitle: "Paris-Brest-Paris",
+          goalDate: "2027-08-22",
+          role: "maintain",
+          target: "Keep the long ride ticking over",
+          byDate: "2026-12-25",
+        },
+      ],
       weeks: [
         {
           number: 1,
@@ -193,6 +239,14 @@ function validGoalPlan(): Record<string, unknown> {
       rationale: "Build toward the gravel goal.",
       startDate: "2026-11-22",
       endDate: "2027-08-29",
+      goals: [
+        {
+          title: "100 km gravel race",
+          date: "2027-08-22",
+          priority: "A",
+          target: "3:10 or faster",
+        },
+      ],
       blocks: [
         {
           name: "Gravel build",
@@ -200,6 +254,15 @@ function validGoalPlan(): Record<string, unknown> {
           startDate: "2027-06-21",
           endDate: "2027-08-07",
           weekCount: 7,
+          subGoals: [
+            {
+              goalTitle: "100 km gravel race",
+              goalDate: "2027-08-22",
+              role: "build",
+              target: "3 h ride",
+              byDate: "2027-08-01",
+            },
+          ],
         },
       ],
     },
@@ -209,6 +272,15 @@ function validGoalPlan(): Record<string, unknown> {
       rationale: "The remaining weeks raise the load.",
       startDate: "2027-06-21",
       endDate: "2027-08-07",
+      subGoals: [
+        {
+          goalTitle: "100 km gravel race",
+          goalDate: "2027-08-22",
+          role: "build",
+          target: "3 h ride",
+          byDate: "2027-08-01",
+        },
+      ],
       weeks: [
         {
           number: 3,
@@ -312,6 +384,17 @@ describe("validatePromptPlan for the season revision", () => {
     expect(validatePromptPlan("reviseSeason", validRevisePlan())).toEqual([]);
   });
 
+  it("requires the goal ledger on a season revision", () => {
+    const plan = validRevisePlan();
+    const season = plan.season as Record<string, unknown>;
+    delete season.goals;
+    const block = plan.block as Record<string, unknown>;
+    delete block.subGoals;
+    const errors = validatePromptPlan("reviseSeason", plan);
+    expect(errors).toContain("season: goals must be an array");
+    expect(errors).toContain("block: subGoals must be an array");
+  });
+
   it("accepts a filled tomorrow but rejects a broken week", () => {
     const plan = validRevisePlan();
     plan.tomorrow = benchmarkDaySession("2026-11-02");
@@ -374,6 +457,17 @@ describe("validatePromptPlan for the season revision", () => {
 describe("validatePromptPlan for goal steering", () => {
   it("accepts the block-and-week revision contract", () => {
     expect(validatePromptPlan("goalSteering", validGoalPlan())).toEqual([]);
+  });
+
+  it("requires the structured goal ledger and block sub-goals", () => {
+    const plan = validGoalPlan();
+    const season = plan.season as Record<string, unknown>;
+    delete season.goals;
+    const block = plan.block as Record<string, unknown>;
+    delete block.subGoals;
+    const errors = validatePromptPlan("goalSteering", plan);
+    expect(errors).toContain("season: goals must be an array");
+    expect(errors).toContain("block: subGoals must be an array");
   });
 
   it("rejects a moved block start, a null next week and a wrong date", () => {

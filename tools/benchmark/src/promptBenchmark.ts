@@ -33,6 +33,8 @@ const BENCHMARK_COMPONENT_KEYS = [
 const SESSION_TYPES = ["workout", "rest"];
 const INTENSITIES = ["easy", "moderate", "hard", "rest"];
 const SESSION_STATUSES = ["completed", "partial", "planned", "missed", "rest"];
+const GOAL_PRIORITIES = ["A", "B", "C"];
+const SUB_GOAL_ROLES = ["build", "maintain", "accept-decline"];
 /**
  * Contract errors that only describe an extra or unexpected key. A response
  * with one of these is still recoverable in the `finalize` stage.
@@ -380,6 +382,67 @@ function addOneDay(date: string): string {
   return value.toISOString().slice(0, 10);
 }
 
+/** Checks the season's structured goal ledger. */
+function checkSeasonGoals(
+  season: Record<string, unknown>,
+  errors: string[],
+): void {
+  if (!Array.isArray(season.goals)) {
+    errors.push("season: goals must be an array");
+    return;
+  }
+  for (const [index, goal] of season.goals.entries()) {
+    if (!isRecord(goal)) {
+      errors.push(`season: goal ${index + 1} is not an object`);
+      continue;
+    }
+    for (const key of ["title", "date", "target"]) {
+      checkField(goal, key, "string", errors, `season: goal ${index + 1}:`);
+    }
+    checkEnum(
+      goal,
+      "priority",
+      GOAL_PRIORITIES,
+      errors,
+      `season: goal ${index + 1}:`,
+    );
+  }
+}
+
+/** Checks a block's structured sub-goals. */
+function checkBlockSubGoals(
+  block: Record<string, unknown>,
+  prefix: string,
+  errors: string[],
+): void {
+  if (!Array.isArray(block.subGoals)) {
+    errors.push(`${prefix} subGoals must be an array`);
+    return;
+  }
+  for (const [index, subGoal] of block.subGoals.entries()) {
+    if (!isRecord(subGoal)) {
+      errors.push(`${prefix} sub-goal ${index + 1} is not an object`);
+      continue;
+    }
+    for (const key of ["goalTitle", "goalDate", "target", "byDate"]) {
+      checkField(
+        subGoal,
+        key,
+        "string",
+        errors,
+        `${prefix} sub-goal ${index + 1}:`,
+      );
+    }
+    checkEnum(
+      subGoal,
+      "role",
+      SUB_GOAL_ROLES,
+      errors,
+      `${prefix} sub-goal ${index + 1}:`,
+    );
+  }
+}
+
 /** Checks that the season revision has the requested shape before judging. */
 function validateReviseSeasonPlan(plan: unknown): string[] {
   if (!isRecord(plan)) return ["response is not an object"];
@@ -422,8 +485,10 @@ function validateReviseSeasonPlan(plan: unknown): string[] {
           errors,
           `season: block ${index + 1}:`,
         );
+        checkBlockSubGoals(block, `season: block ${index + 1}:`, errors);
       }
     }
+    checkSeasonGoals(season, errors);
   }
 
   const block = plan.block;
@@ -433,6 +498,7 @@ function validateReviseSeasonPlan(plan: unknown): string[] {
     for (const key of ["name", "focus", "rationale", "startDate", "endDate"]) {
       checkField(block, key, "string", errors, "block:");
     }
+    checkBlockSubGoals(block, "block:", errors);
     if (!Array.isArray(block.weeks) || block.weeks.length === 0) {
       errors.push("block: weeks must be a non-empty array");
     } else {
@@ -553,7 +619,14 @@ function validateGoalSteeringPlan(plan: unknown): string[] {
     }
     if (!Array.isArray(season.blocks) || season.blocks.length === 0) {
       errors.push("season: blocks must be a non-empty array");
+    } else {
+      for (const [index, entry] of season.blocks.entries()) {
+        if (isRecord(entry)) {
+          checkBlockSubGoals(entry, `season: block ${index + 1}:`, errors);
+        }
+      }
     }
+    checkSeasonGoals(season, errors);
   }
 
   const block = plan.block;
@@ -563,6 +636,7 @@ function validateGoalSteeringPlan(plan: unknown): string[] {
     for (const key of ["name", "focus", "rationale", "startDate", "endDate"]) {
       checkField(block, key, "string", errors, "block:");
     }
+    checkBlockSubGoals(block, "block:", errors);
     if (block.startDate !== "2027-06-21") {
       errors.push("block: startDate must stay 2027-06-21");
     }

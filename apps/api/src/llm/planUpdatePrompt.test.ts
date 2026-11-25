@@ -70,10 +70,45 @@ const activities = [
 const season = makeSeason({
   goal: "Sub-4-hour marathon",
   rationale: "Build a strong aerobic base.",
+  goals: [
+    {
+      title: "Sub-4-hour marathon",
+      date: "2027-04-01",
+      priority: "A",
+      target: "Under 4:00",
+    },
+  ],
+  blocks: [
+    {
+      name: "Base",
+      focus: "Aerobic",
+      startDate: "2026-10-21",
+      endDate: "2026-12-01",
+      weekCount: 6,
+      subGoals: [
+        {
+          goalTitle: "Sub-4-hour marathon",
+          goalDate: "2027-04-01",
+          role: "build",
+          target: "Six consistent weeks of aerobic running",
+          byDate: "2026-11-30",
+        },
+      ],
+    },
+  ],
 });
 
 const block = makeBlock({
   focus: "Aerobic endurance",
+  subGoals: [
+    {
+      goalTitle: "Sub-4-hour marathon",
+      goalDate: "2027-04-01",
+      role: "build",
+      target: "Six consistent weeks of aerobic running",
+      byDate: "2026-11-30",
+    },
+  ],
   weeks: [
     {
       number: 1,
@@ -306,6 +341,15 @@ describe("unified plan update prompt", () => {
       'top-level keys are exactly "season", "block", "week", "today", "diet", and "bodyMetrics"',
     );
     expect(prompt).toContain("Create the current block starting on 2026-10-21");
+    expect(prompt).toContain("Goals:");
+    expect(prompt).toContain("Sub-goals:");
+    expect(
+      systemPrompt(
+        buildPlanUpdateMessages(updateInput({ revision: { ...fullRevision } })),
+      ),
+    ).toContain(
+      'Keep the season\'s "goals" current and give every remaining block its "subGoals"',
+    );
     expect(prompt).toContain(
       '- Revise the current week and return it in "week".',
     );
@@ -666,6 +710,16 @@ describe("weekly update prompt", () => {
     expect(prompt).toContain("Goal: Sub-4-hour marathon");
     expect(prompt).toContain("Block: Base");
     expect(prompt).toContain("Aerobic base + strides");
+    expect(
+      systemPrompt(
+        buildWeeklyUpdateMessages({
+          ...base,
+          season,
+          block,
+          weekStartDate: "2026-10-26",
+        }),
+      ),
+    ).toContain("Name the block sub-goals the week advances");
     expect(prompt).toContain(
       'top-level keys are exactly "week", "block", and "bodyMetrics"',
     );

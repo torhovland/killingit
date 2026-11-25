@@ -1,13 +1,23 @@
 import type { ReactNode } from "react";
 import {
   formatThresholdValue,
+  type BlockSubGoal,
+  type BlockSubGoalRole,
   type DietProgress,
+  type SeasonGoal,
   type ThresholdSummary,
 } from "@killingit/shared";
 import { Bullet } from "../Bullet";
 import { FormattedText } from "../FormattedText";
 import { Spinner } from "../Spinner";
 import { Card } from "../components/Card";
+import { formatPlanDate } from "./formatPlanDate";
+
+const SUB_GOAL_ROLE_LABELS: Record<BlockSubGoalRole, string> = {
+  build: "Build",
+  maintain: "Maintain",
+  "accept-decline": "Accept decline",
+};
 
 /** Dimmed overlay shown while a plan level is being replaced in flight. */
 export function RefreshingOverlay({
@@ -98,6 +108,66 @@ export function DietProgressLine({
         testId={`${testId}-note`}
       />
     </Card>
+  );
+}
+
+/** The season's dated goals and their priorities. */
+export function SeasonGoalList({
+  goals,
+  testId,
+}: {
+  goals: readonly SeasonGoal[] | undefined;
+  testId: string;
+}) {
+  if (goals === undefined || goals.length === 0) {
+    return null;
+  }
+  return (
+    <div className="mt-3 flex flex-col gap-1 text-base" data-testid={testId}>
+      <p className="font-medium">Season goals</p>
+      <ul className="flex list-disc flex-col gap-1 pl-5 text-muted-foreground">
+        {goals.map((goal) => (
+          <li key={`${goal.date}-${goal.title}`}>
+            <span className="font-medium">
+              {formatPlanDate(goal.date)} ({goal.priority})
+            </span>
+            <Bullet />
+            {goal.title}: {goal.target}
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+/** What a block does for every goal still ahead. */
+export function SubGoalList({
+  subGoals,
+  testId,
+}: {
+  subGoals: readonly BlockSubGoal[] | undefined;
+  testId: string;
+}) {
+  if (subGoals === undefined || subGoals.length === 0) {
+    return null;
+  }
+  return (
+    <div className="mt-3 flex flex-col gap-1 text-base" data-testid={testId}>
+      <p className="font-medium">Block goals</p>
+      <ul className="flex list-disc flex-col gap-1 pl-5 text-muted-foreground">
+        {subGoals.map((subGoal) => (
+          <li
+            key={`${subGoal.goalDate}-${subGoal.goalTitle}-${subGoal.byDate}-${subGoal.target}`}
+          >
+            <span className="font-medium">
+              {SUB_GOAL_ROLE_LABELS[subGoal.role]}:
+            </span>{" "}
+            {subGoal.target} by {formatPlanDate(subGoal.byDate)} for{" "}
+            {subGoal.goalTitle} ({formatPlanDate(subGoal.goalDate)})
+          </li>
+        ))}
+      </ul>
+    </div>
   );
 }
 

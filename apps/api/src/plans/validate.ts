@@ -1,6 +1,7 @@
 import type { CoachPlan } from "@killingit/shared";
 import { addDays, startOfWeek } from "@killingit/shared";
 import { calorieEstimateProblems } from "./calorieEstimates.js";
+import { planGoalProblems } from "./goals.js";
 import { blockFor, weekFor } from "./periods.js";
 import { PlanValidationError } from "./planValidationError.js";
 
@@ -20,6 +21,10 @@ export function assertPlanValid(
     throw new PlanValidationError(calorieProblem.message);
   }
   assertSeasonBlocksContiguous(plan.season, today);
+  const goalProblem = planGoalProblems(plan, { today })[0];
+  if (goalProblem !== undefined) {
+    throw new PlanValidationError(goalProblem);
+  }
   if (plan.today.date !== today) {
     throw new PlanValidationError(
       "The coach returned today's session for the wrong date.",
@@ -128,6 +133,15 @@ function assertSeasonBlocksContiguous(
     if (next.startDate !== unplanned) {
       throw new PlanValidationError(
         `The coach returned a gap between season blocks: "${previous.name}" ends on ${previous.endDate} and "${next.name}" starts on ${next.startDate}, leaving ${unplanned} unplanned.`,
+      );
+    }
+    const previousSunday = addDays(startOfWeek(previous.endDate), 6);
+    if (
+      previous.endDate !== previousSunday ||
+      next.startDate !== startOfWeek(next.startDate)
+    ) {
+      throw new PlanValidationError(
+        `The coach returned a season block boundary in the middle of a week: "${previous.name}" ends on ${previous.endDate} and "${next.name}" starts on ${next.startDate}. A block must end on a Sunday and the next block must start on a Monday.`,
       );
     }
   }

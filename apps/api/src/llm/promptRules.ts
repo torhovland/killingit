@@ -120,6 +120,61 @@ const ATHLETE_EVENT_RULES = `The athlete's dated goals and events are dates the 
 const GOAL_FEASIBILITY_RULES = `After you plan a season, a block, or a week, check it against the athlete's stated goals and the training they have actually completed. Is the plan on track? If it is not, say so plainly in the relevant goal, focus, or rationale, and say whether catching up is realistic. If the goal cannot realistically be reached from here, say that too and explain what is realistic. Never present a goal as certain when the training data does not support it.`;
 
 /**
+ * How the coach plans a season around every dated goal instead of only the next
+ * one. The season carries the goal list and every block carries the sub-goals
+ * that say what it does for each goal still ahead.
+ */
+const GOAL_LEDGER_RULES = `The athlete's dated goals and events may be spread across the season. Plan backwards from every one of them, not forwards from the next one.
+
+In "season.goals", list every dated race, goal or other dated target the athlete stated, in date order, with its title, date, target and priority. Use the athlete's own dated goals and events; never invent one. Set every priority to "A" unless the athlete says otherwise or the coaching situation clearly justifies a lower priority. All goals may be A.
+
+For each goal, decide what performance it needs, the minimum specific preparation it needs, and when that preparation must start, including the taper before it and the recovery after it. If the time from today to the goal is shorter than that minimum, start the general preparation earlier or say plainly in the relevant rationale that the goal is not realistic from here and what is realistic.
+
+Every block must account for every goal that is still ahead when the block starts. Add one or more "subGoals" for that goal: the role is "build" when the block develops the goal, "maintain" when it keeps the qualities the goal needs, and "accept-decline" when the block deliberately gives another goal priority and this goal will slip. Reference the goal by its exact "goalDate"; "goalTitle" is a short label and may include the date. A block may carry several sub-goals for one goal. A block with no goal still ahead carries an empty "subGoals" array.
+
+Even when every goal is A, you may focus on the next upcoming goal and accept a decline for a later one, provided the remaining time is enough to train for the later goal as well. Do not ignore a later goal until its own block: build the qualities it shares with the current goal now and keep the rest ticking over. Only the later goal's specific preparation and taper wait for its own block.
+
+Recovery and taper blocks still account for every goal still ahead, usually with "maintain" or "accept-decline" and a target that says what is protected or what is allowed to slip.
+
+Each "target" is your coaching judgement of a meaningful, measurable milestone for that block, not an arithmetic share of a season total and not an even weekly interpolation. Each "byDate" must fall inside the block. A block's "focus" and "rationale" must name the sub-goals the block is built around, so the ledger is part of the plan and not only a table.`;
+
+/**
+ * How the coach turns a dated goal into the performance the plan must build
+ * toward. A goal ledger without this becomes a list of labels.
+ */
+const GOAL_DEMAND_RULES = `For every dated performance goal, state the performance it requires in the goal's own units: the power, pace or time the athlete must hold, the athlete's current estimated performance, and the gap between them. Derive the demand from the input you have: a prior result on the same or a similar course, the athlete's stated threshold, the course distance and climbing, and the training actually completed. When a prior result exists, use it as the anchor. If a previous 100 km gravel race with 1170 m of climbing took 3:20, then a 3:10 target needs at least the power that produced 3:20, and normally more; never set a build target below that prior result unless you explain why the result was not comparable. When the athlete gives a threshold value for the period of the prior result but not the race power, use that threshold as the power anchor for the prior result and state the assumption; do not refuse to estimate because a race power was not recorded. A 3:20 on the course at an FTP of 285 W means the comparable power for 3:20 is 285 W; a 3:10 target needs at least 280 W and should be compared with that 285 W, not with a 252 W training milestone. Treat the prior result and the target as comparable unless the input gives a reason they are not. State the assumptions behind the estimate and say what evidence would change it. Do not call a goal ambitious instead of quantifying what it needs. If the input truly does not let you estimate the requirement, say what data you need and do not pretend to judge feasibility.
+
+A "build" sub-goal must state the performance the goal itself requires as its target, not replace it with an interim milestone. A target below that requirement is not a build sub-goal, even if you describe it as a training milestone: raise it to the required performance, or change the role to "accept-decline" and say plainly that the goal is out of reach. If you want an interim milestone, add it after the required performance; do not use it instead.
+
+Write the numeric target in the build sub-goal, for example "FTP 285 W by 2027-08-07", not only a sentence saying the goal needs about 285 W. The block's week-by-week "estimatedFtpWatts" must reach that numeric target by the byDate. Never return a build sub-goal of 280 W while every week's FTP estimate stays near 250 W: either prescribe the load that supports the rise, or say the target is out of reach and set the closest realistic numeric target.
+
+When the goal is still ahead and the athlete has time to train, prefer a build sub-goal that targets the required performance, even when it is ambitious. Do not treat the size of the gap alone, or "only seven weeks" alone, as making the requirement impossible when the athlete has held the level before and can train 6-10 hours; the prior level is evidence the adaptation is available. Use "accept-decline" only for an injury, illness, a hard time constraint, or a prior result that is not comparable, and name the constraint.`;
+
+/**
+ * How the coach makes the load arithmetic explicit: available hours, planned
+ * hours, session TSS, week target and projected form.
+ */
+const LOAD_AUDIT_RULES = `Before you choose a block's weeks or a week's sessions, make the load arithmetic explicit in the target loads and rationale:
+- Sum the planned session durations and compare them with the hours the athlete says they can train. On a normal build week, use most of that capacity; if you leave a substantial part unused, give a concrete reason.
+- Sum the sessions' estimated TSS and compare it with the week's target load. The target load is not a label: the sessions must add up to it. When they do not, add work or change the target; on a build block, add work. An 8-10 hour endurance build week is normally about 350-500 TSS, not 300-340; if your sessions total less, add duration or intensity or explain why the athlete cannot absorb more.
+- State the current CTL and the projected CTL/TSB change for the week. A build week that leaves the athlete Maintaining or Fresh is under-loaded unless it is a recovery or taper week.
+- When the athlete has completed every prescribed session and says the work felt easy, treat the stored load as too low. Rebuild from the athlete's capacity and the goal demand; do not preserve a stored target load merely because it is stored.`;
+
+/**
+ * How a week turns its block's sub-goals into sessions. Shared by every prompt
+ * that returns or revises a week.
+ */
+const WEEK_BLOCK_GOAL_RULES = `A week is not a generic seven-day template. Its "focus" and "rationale" must name the block sub-goals the week advances or maintains, and every session must serve one of those sub-goals or be recovery that makes the next productive session possible. If a session cannot be tied to the block's sub-goals, replace it with a session that can or with rest. When the block's sub-goals change, the week must change with them.`;
+
+/**
+ * How the coach uses tests. A test is a normal productive workout, not a
+ * separate session type and not a fixed calendar ritual.
+ */
+const TESTING_RULES = `Tests are productive workouts, not a separate phase and not an extra session. Use one when it answers a question the plan depends on: a baseline early in a block, a retest before the next block sets its targets, a race rehearsal or a fuelling test before a goal. You decide whether and when a test is useful; do not force a fixed test schedule.
+
+A test is a normal workout whose title and description state the protocol, the target that would show progress, and what you will change if the result is better or worse. Embed the test in the hard stimulus of a productive session rather than adding it on top, for example a 20-minute FTP test inside an endurance ride or a race-pace block inside a long gravel ride. A maximal test replaces that session's hard work and is surrounded by easy days; never put one in a taper or race week.`;
+
+/**
  * How the coach reads the athlete's food log. Shared by every prompt that can
  * receive meals so a meal is never counted as training and the estimates are
  * never presented as exact measurements.
@@ -200,7 +255,11 @@ Use the date the statement refers to. For a number in the profile that names no 
 
 The stored history tells you what is already known; do not repeat a value for the same date.`,
   ATHLETE_EVENT_RULES,
+  GOAL_LEDGER_RULES,
+  GOAL_DEMAND_RULES,
+  LOAD_AUDIT_RULES,
   GOAL_FEASIBILITY_RULES,
+  TESTING_RULES,
   DAILY_HEALTH_RULES,
   DIET_RULES,
   DIET_PROGRESS_RULES,
@@ -211,7 +270,7 @@ The stored history tells you what is already known; do not repeat a value for th
  * How season blocks tile the season. Every prompt that returns season blocks
  * uses this: the API rejects a season whose blocks share a day or skip one.
  */
-export const SEASON_BLOCK_RULES = `Season blocks tile the season: each block starts the day after the previous block ends. Never start a block on the day the previous one ends — a block that ends on 2026-11-23 is followed by one that starts on 2026-11-24 — so no date belongs to two blocks and no date between blocks is left unplanned. The first block starts on the season's start date and the last block ends on the season's end date. The app's training weeks run Monday to Sunday, so every block boundary between the first and last must fall between calendar weeks: a block that does not start on the season's start date starts on a Monday, and a block that does not end on the season's end date ends on a Sunday.`;
+export const SEASON_BLOCK_RULES = `Season blocks tile the season: each block starts the day after the previous block ends. Never start a block on the day the previous one ends — a block that ends on Sunday 2026-11-22 is followed by one that starts on Monday 2026-11-23 — so no date belongs to two blocks and no date between blocks is left unplanned. The first block starts on the season's start date and the last block ends on the season's end date. The app's training weeks run Monday to Sunday, so every block boundary between the first and last must fall between calendar weeks: a block that does not start on the season's start date starts on a Monday, and a block that does not end on the season's end date ends on a Sunday. A block that ends mid-week leaves the next block without a Monday start: extend or shorten the phase so its end is a Sunday. Set "weekCount" to the number of Monday-to-Sunday weeks the block covers.`;
 
 /**
  * How a new season opens: the coach meets the athlete. The greeting lives on the
@@ -347,7 +406,7 @@ const ACTIVITY_DATA_LIMITS_RULE = `Recorded activities can be incomplete: an ind
  * the FTP stated in the athlete's profile; without one the feature stays off.
  */
 export const TRAINING_LOAD_RULES = promptSections(
-  `When the athlete's profile states an FTP (functional threshold power), estimate how it will change day by day from the training they have actually completed, their recent form, and the plan's progression. Set "estimatedFtpWatts" on every week session from today onward, including rest days, to your estimate for that date; this daily projection feeds the athlete's FTP chart. Set the week's "estimatedFtpWatts" to the estimate for the day the week is shown from (today in the current week, otherwise the week's first day) so the Week view can show it once. Leave a past session's "estimatedFtpWatts" null. When the response contract also includes the block, set the weekly estimate in every week of the block so the athlete can see the progression. Be realistic but not needlessly conservative: consistent completed load can support meaningful gains, especially when the athlete is regaining fitness they held before, and a deload or a missed week holds or reduces the estimate. Project the gain the training and history support rather than the smallest defensible one, and do not invent an unsupported leap. When the profile states no FTP, set every session, week, and block week estimate to null and do not invent one.`,
+  `When the athlete's profile states an FTP (functional threshold power), estimate how it will change day by day from the training they have actually completed, their recent form, and the plan's progression. Set "estimatedFtpWatts" on every week session from today onward, including rest days, to your estimate for that date; this daily projection feeds the athlete's FTP chart. Set the week's "estimatedFtpWatts" to the estimate for the day the week is shown from (today in the current week, otherwise the week's first day) so the Week view can show it once. Leave a past session's "estimatedFtpWatts" null. When the response contract also includes the block, set the weekly estimate in every week of the block so the athlete can see the progression. Be realistic but not needlessly conservative: consistent completed load can support meaningful gains, especially when the athlete is regaining fitness they held before, and a deload or a missed week holds or reduces the estimate. Project the gain the training and history support rather than the smallest defensible one, and do not invent an unsupported leap. When a block has an FTP or pace sub-goal, the week-by-week estimates must show a credible progression toward it. When the athlete has held that level before and is regaining fitness, project the regain the planned load supports rather than holding the estimate flat or capping it at the current value: a detrained athlete can recover a large part of a 30-40 W gap over seven weeks of 8-10 hours when the prior level is known, roughly 5 W per week. Do not reduce that regain to a token few watts or cap a seven-week regain at 10 W. If the planned load cannot support the target, say so and set the closest realistic target. When the profile states no FTP, set every session, week, and block week estimate to null and do not invent one.`,
   `Set "estimatedTss" on every workout, including recorded activities and today's and tomorrow's sessions, to your best estimate of its training stress score (a positive number; 0 on rest days). Use the session's duration and intensity, the athlete's thresholds for that sport when known, and any recorded power or heart-rate data. When those channels are missing, still estimate TSS as best you can from the elapsed time, the session type, and any other recorded effort.`,
   ACTIVITY_DATA_LIMITS_RULE,
   TSS_ESTIMATE_GUIDE,
@@ -470,6 +529,7 @@ export const PLAN_UPDATE_SHARED_RULES = (
 ): string =>
   promptSections(
     WEEK_OUTLINE_RULES,
+    WEEK_BLOCK_GOAL_RULES,
     ...levelRules,
     WEATHER_PLANNING_RULES,
     BIKE_WORKOUT_RULES,
@@ -538,12 +598,19 @@ export const WEEK_CONTRACT = `{
 /** The diet goal, its target, whether the athlete stated it, and the trend judgement. */
 export const DIET_CONTRACT = `{ "goal": "string", "goalProvided": false, "goalWeightKg": 0, "goalBodyFatPercent": 0, "goalDate": "YYYY-MM-DD", "goalMissReason": "string", "assessment": "string" }`;
 
+/** One dated goal in the season's goal ledger. */
+const SEASON_GOAL_CONTRACT = `{ "title": "string", "date": "YYYY-MM-DD", "priority": "A | B | C", "target": "string" }`;
+
+/** What one block does for a goal still ahead of it. */
+const BLOCK_SUB_GOAL_CONTRACT = `{ "goalTitle": "string", "goalDate": "YYYY-MM-DD", "role": "build | maintain | accept-decline", "target": "string", "byDate": "YYYY-MM-DD" }`;
+
 export const BLOCK_CONTRACT = `{
   "name": "string",
   "focus": "string",
   "rationale": "string",
   "startDate": "YYYY-MM-DD",
   "endDate": "YYYY-MM-DD",
+  "subGoals": [${BLOCK_SUB_GOAL_CONTRACT}],
   "dietProgress": ${DIET_PROGRESS_CONTRACT} | null,
   "weeks": [
     {
@@ -563,6 +630,7 @@ export const SEASON_CONTRACT = `{
   "rationale": "string",
   "startDate": "YYYY-MM-DD",
   "endDate": "YYYY-MM-DD",
+  "goals": [${SEASON_GOAL_CONTRACT}],
   "dietProgress": ${DIET_PROGRESS_CONTRACT} | null,
   "blocks": [
     {
@@ -571,6 +639,7 @@ export const SEASON_CONTRACT = `{
       "startDate": "YYYY-MM-DD",
       "endDate": "YYYY-MM-DD",
       "weekCount": 0,
+      "subGoals": [${BLOCK_SUB_GOAL_CONTRACT}],
       "dietProgress": ${DIET_PROGRESS_CONTRACT} | null
     }
   ]

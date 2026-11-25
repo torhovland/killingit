@@ -149,6 +149,11 @@ better or worse.
   both are chosen so the app's measured TSS equals the target.
 - `canBeOutdoor: false` or an indoor/trainer title records a trainer session with
   no distance.
+- A session whose title or description prescribes a test is recorded at the
+  hardest effort its duration supports, and its analysis states the result the
+  athlete's model expects on that date: FTP for a cycling test and threshold
+  pace for a running test. Tests remain normal workouts; the simulation only
+  recognises them from their text.
 - A race day is simulated from the athlete's ability that morning, using the
   race models below.
 

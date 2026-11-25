@@ -99,7 +99,10 @@ export function formatCoachingSurveyAdjustments(
  * Renders the dated goals and events the athlete stated. The coach plans around
  * these dates, so the list sits with the profile at the top of the context.
  */
-export function formatAthleteEvents(events: readonly AthleteEvent[]): string[] {
+export function formatAthleteEvents(
+  events: readonly AthleteEvent[],
+  today?: string,
+): string[] {
   if (events.length === 0) {
     return [];
   }
@@ -110,7 +113,9 @@ export function formatAthleteEvents(events: readonly AthleteEvent[]): string[] {
         event.endDate === null || event.endDate === event.startDate
           ? event.startDate
           : `${event.startDate} → ${event.endDate}`;
-      return `- ${dates} (${event.kind}): ${event.title}`;
+      const past =
+        today !== undefined && (event.endDate ?? event.startDate) < today;
+      return `- ${dates} (${event.kind}${past ? ", past" : ""}): ${event.title}`;
     }),
   ];
 }

@@ -7,6 +7,8 @@ import {
   DietProgressLine,
   PlanList,
   PlanListItem,
+  SeasonGoalList,
+  SubGoalList,
   ThresholdsLine,
 } from "./sections";
 
@@ -46,6 +48,7 @@ export function SeasonSection({
           )
         )}
       </p>
+      <SeasonGoalList goals={season.goals} testId="season-goals" />
       {season.introduction != null && season.introduction.trim() !== "" && (
         <div
           className="mt-3 rounded border bg-background p-3 text-base"
@@ -91,6 +94,10 @@ export function SeasonSection({
             <FormattedText
               text={block.focus}
               className="text-muted-foreground"
+            />
+            <SubGoalList
+              subGoals={block.subGoals}
+              testId="season-block-goals"
             />
           </PlanListItem>
         ))}

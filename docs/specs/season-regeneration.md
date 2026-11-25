@@ -52,12 +52,15 @@ place, and re-plans the future blocks from there.
 3. An update keeps every season block whose end date is before today byte for
    byte (name, focus, dates, week count) and keeps the original season start
    date.
-4. An update refreshes the partially completed current block in place: the
-   current season block and the detailed block keep their stored start date.
+4. An update refreshes the partially completed current block in place: while
+   that block is still in progress, the current season block and the detailed
+   block keep their stored start date. If the stored block ended before today,
+   it is history; the refresh may start a new current block that covers today.
    The following blocks cover the rest of the season without gaps or overlaps.
-   A response that moves the current block's start date, or whose blocks share
-   a day or skip one, fails with a readable error and leaves the old plan in
-   place. See `docs/specs/season-block-boundaries.md`.
+   A response that moves the start date of a still-running block, leaves today
+   outside a current block, or whose blocks share a day or skip one, fails with
+   a readable error and leaves the old plan in place. See
+   `docs/specs/season-block-boundaries.md`.
 5. Saving changed answers with an existing season starts an update, not a new
    season. If there is no season, or today is outside it, saving answers falls
    back to a full new season.

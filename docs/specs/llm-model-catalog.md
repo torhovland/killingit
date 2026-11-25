@@ -178,8 +178,9 @@ is discouraged and that the athlete should choose another model first.
 
 The prompts benchmark runs three prompts per model: the daily update for
 2026-10-30, a drastic season revision on 2026-11-01, and a goal-steering refresh
-on 2027-07-04 from the full-season test where the 3:10 gravel goal is slipping.
-All are built by the app's real prompt builders from fixture athletes, so a
+on 2027-07-04 from the full-season test where the 3:10 gravel goal is slipping
+and the stored goal ledger must be revised. All are built by the app's real
+prompt builders from fixture athletes, so a
 rule, contract or context change reaches the benchmark; a snapshot test pins the
 built text, so a prompt change fails the test suite until the snapshot is
 deliberately updated. Ability is the mean of the three judged scores. Ability is

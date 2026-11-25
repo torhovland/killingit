@@ -3,9 +3,11 @@ import {
   interpretTrainingStressBalance,
   type BikeWorkout,
   type BlockPlan,
+  type BlockSubGoal,
   type CoachPlan,
   type DayPlan,
   type DietProgress,
+  type SeasonGoal,
   type SeasonPlan,
   type TrainingLoad,
   type WeekPlan,
@@ -18,6 +20,13 @@ export function formatSeasonPlan(plan: SeasonPlan): string {
     `Goal: ${plan.goal}`,
     `Dates: ${plan.startDate} → ${plan.endDate}${plan.estimatedFtpWatts != null ? ` — estimated FTP ${plan.estimatedFtpWatts} W` : ""}`,
   ];
+  if (plan.goals !== undefined) {
+    lines.push(
+      "Goals:",
+      ...plan.goals.map(formatSeasonGoal),
+      ...(plan.goals.length === 0 ? ["none stated"] : []),
+    );
+  }
   if (plan.dietProgress != null) {
     lines.push(
       `Diet progress by the end of the season: ${formatDietProgress(plan.dietProgress)}`,
@@ -28,6 +37,7 @@ export function formatSeasonPlan(plan: SeasonPlan): string {
     "Blocks:",
     ...plan.blocks.flatMap((block, index) => [
       `${index + 1}. ${block.name} (${block.startDate} → ${block.endDate}, ${block.weekCount} weeks): ${block.focus}`,
+      ...formatSubGoals(block.subGoals, "   "),
       ...(block.dietProgress != null
         ? [
             `   Diet progress by the end of this block: ${formatDietProgress(block.dietProgress)}`,
@@ -36,6 +46,31 @@ export function formatSeasonPlan(plan: SeasonPlan): string {
     ]),
   );
   return lines.join("\n");
+}
+
+/** One line of the season's goal ledger. */
+function formatSeasonGoal(goal: SeasonGoal): string {
+  return `- ${goal.date} (${goal.priority}): ${goal.title} — ${goal.target}`;
+}
+
+/** The block's sub-goal lines, indented for the level that renders them. */
+function formatSubGoals(
+  subGoals: readonly BlockSubGoal[] | undefined,
+  indent = "",
+): string[] {
+  if (subGoals === undefined) {
+    return [];
+  }
+  if (subGoals.length === 0) {
+    return [`${indent}Sub-goals: none; no goal is still ahead.`];
+  }
+  return [
+    `${indent}Sub-goals:`,
+    ...subGoals.map(
+      (subGoal) =>
+        `${indent}- ${subGoal.goalDate} ${subGoal.goalTitle} [${subGoal.role}]: ${subGoal.target} (by ${subGoal.byDate})`,
+    ),
+  ];
 }
 
 /** Renders the detailed block plan and its weekly progression. */
@@ -52,6 +87,7 @@ export function formatBlockPlan(plan: BlockPlan): string {
   }
   lines.push(
     `Rationale: ${plan.rationale}`,
+    ...formatSubGoals(plan.subGoals),
     "Weeks:",
     ...plan.weeks.map((week) => {
       const progress =

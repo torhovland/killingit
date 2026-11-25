@@ -131,11 +131,17 @@ export function formatPlanContext(input: PlanContextInput): string[] {
   // weight in the survey answers) on the day it was actually given.
   const profileDate = latestAnswerDate(input.athleteAnswers);
   lines.push("", ...formatAthleteProfile(input.athleteAnswers, profileDate));
-  const upcomingEvents = (input.events ?? []).filter(
-    (event) => eventEndDate(event) >= input.today,
+  // Keep future events and past goals/races. A past goal is still part of the
+  // season's story and explains the current load; a past trip or appointment
+  // is only a historical constraint and would be noise.
+  const listedEvents = (input.events ?? []).filter(
+    (event) =>
+      eventEndDate(event) >= input.today ||
+      event.kind === "race" ||
+      event.kind === "goal",
   );
-  if (upcomingEvents.length > 0) {
-    lines.push("", ...formatAthleteEvents(upcomingEvents));
+  if (listedEvents.length > 0) {
+    lines.push("", ...formatAthleteEvents(listedEvents, input.today));
   }
   if (input.athleteFtpWatts !== undefined && input.athleteFtpWatts !== null) {
     lines.push(

@@ -2,6 +2,14 @@
 
 - **Status:** Accepted (implemented)
 - **Date:** 2026-10-21
+- **Updated:** 2026-11-25 — every plan prompt now plans from a structured goal
+  ledger. The season carries `goals`, every block summary and detailed block
+  carries `subGoals`, and the prompts require week planning to advance the
+  block's sub-goals. `GOAL_DEMAND_RULES` makes the coach derive the goal's
+  required performance from the input and state the gap; `LOAD_AUDIT_RULES`
+  reconciles planned hours and session TSS with the target load. Tests remain
+  ordinary productive workouts. See `docs/specs/goal-ledger.md`, ADR 0064 and
+  ADR 0065.
 - **Updated:** 2026-11-22 — the plan-update response contract now carries only
   the levels a revision changes. A week-only revision returns the week, a block
   revision returns the season, block, week and today, and a progress-only
@@ -226,6 +234,11 @@ and returns `LlmProvider` chat messages.
   `buildDailyUpdateMessages` instead, with the stored detailed today plan as
   optional context; a week, next-period, progress-only, block or season
   revision keeps the plan-update prompt. See ADR 0062.
+- Every plan prompt carries `GOAL_LEDGER_RULES` and `TESTING_RULES`; the daily,
+  weekly and update prompts also carry `WEEK_BLOCK_GOAL_RULES`. The season's
+  goals and each block's sub-goals are rendered into the prompt by
+  `formatSeasonPlan` and `formatBlockPlan`, so a refresh sees the stored ledger
+  instead of inventing a new one. See `docs/specs/goal-ledger.md`.
 - Every plan prompt uses the same rationale, outline, weather, bike-workout,
   training-load, body-metric, session-purpose and enum rules. The initial
   season and block prompts also ask for a rationale and the training-load

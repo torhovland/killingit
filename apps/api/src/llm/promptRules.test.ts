@@ -70,11 +70,65 @@ describe("shared prompt composition", () => {
         COACH_AMBITION_RULES,
         ATHLETE_INPUT_RULES,
         promptRuleLiteral("ATHLETE_EVENT_RULES"),
+        promptRuleLiteral("GOAL_LEDGER_RULES"),
+        promptRuleLiteral("GOAL_DEMAND_RULES"),
+        promptRuleLiteral("LOAD_AUDIT_RULES"),
+        promptRuleLiteral("TESTING_RULES"),
         DAILY_HEALTH_RULES,
         DIET_RULES,
         TEXT_FORMATTING_RULES,
       ]),
     ).toEqual([]);
+  });
+
+  it("plans from a structured goal ledger rather than the next goal only", () => {
+    const ledger = promptRuleLiteral("GOAL_LEDGER_RULES");
+    for (const fragment of [
+      '"season.goals"',
+      '"subGoals"',
+      '"build"',
+      '"maintain"',
+      '"accept-decline"',
+      "Even when every goal is A",
+      "not an arithmetic share",
+      "Recovery and taper blocks",
+    ]) {
+      expect(ledger).toContain(fragment);
+    }
+    const demand = promptRuleLiteral("GOAL_DEMAND_RULES");
+    for (const fragment of [
+      "power, pace or time",
+      "current estimated performance",
+      "the gap between them",
+      "previous 100 km gravel race",
+      "at least the power that produced 3:20",
+      "never set a build target below",
+      "use that threshold as the power anchor",
+      "do not refuse to estimate",
+      "at least 280 W",
+      "not replace it with an interim milestone",
+      'week-by-week "estimatedFtpWatts"',
+      '"build" sub-goal',
+    ]) {
+      expect(demand).toContain(fragment);
+    }
+    const loadAudit = promptRuleLiteral("LOAD_AUDIT_RULES");
+    for (const fragment of [
+      "planned session durations",
+      "hours the athlete says they can train",
+      "sessions' estimated TSS",
+      "target load is not a label",
+      "current CTL",
+      "felt easy",
+    ]) {
+      expect(loadAudit).toContain(fragment);
+    }
+    expect(promptRuleLiteral("WEEK_BLOCK_GOAL_RULES")).toContain(
+      "block sub-goals",
+    );
+    expect(promptRuleLiteral("TESTING_RULES")).toContain(
+      "not a separate phase",
+    );
   });
 
   it("builds the completed-session rules in the order a prompt reads them", () => {
@@ -104,10 +158,11 @@ describe("shared prompt composition", () => {
     ).toEqual([]);
   });
 
-  it("builds the update tail from the seven shared rules in order", () => {
+  it("builds the update tail from the shared rules in order", () => {
     const tail = PLAN_UPDATE_SHARED_RULES();
     const order = [
       promptRuleLiteral("WEEK_OUTLINE_RULES"),
+      promptRuleLiteral("WEEK_BLOCK_GOAL_RULES"),
       promptRuleLiteral("WEATHER_PLANNING_RULES"),
       promptRuleLiteral("BIKE_WORKOUT_RULES"),
       DIET_PLANNING_PROMPT,

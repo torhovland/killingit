@@ -12,6 +12,10 @@ import { completePlanJson } from "./planCompletion.js";
 import { PLAN_MAX_TOKENS } from "./planBudget.js";
 import type { CompletionCredentials } from "./resilientCompletion.js";
 import {
+  withBlockGoalCoverage,
+  withPlanGoalCoverage,
+} from "./planGoalSchemas.js";
+import {
   dailyPlanUpdateSchema,
   planUpdateResponseSchema,
   weeklyPlanUpdateSchema,
@@ -335,12 +339,15 @@ export async function generatePlanUpdate(
     ? startOfWeek(addDays(input.today, 1))
     : null;
   const levels = planUpdateResponseLevels(input.revision);
-  const responseSchema = withTomorrowPlacement(
-    withPlausibleCalories(
-      withNextWeekDates(
-        withWeekDates(planUpdateResponseSchema(levels), weekStart),
-        nextWeekStart,
+  const responseSchema = withPlanGoalCoverage(
+    withTomorrowPlacement(
+      withPlausibleCalories(
+        withNextWeekDates(
+          withWeekDates(planUpdateResponseSchema(levels), weekStart),
+          nextWeekStart,
+        ),
       ),
+      input,
     ),
     input,
   );
@@ -391,9 +398,12 @@ export async function generateWeeklyUpdate(
   input: WeeklyUpdateInput,
 ): Promise<WeeklyPlanUpdate> {
   return completePlanJson(
-    withWeekDates(
-      withPlausibleCalories(weeklyPlanUpdateSchema),
-      input.weekStartDate,
+    withBlockGoalCoverage(
+      withWeekDates(
+        withPlausibleCalories(weeklyPlanUpdateSchema),
+        input.weekStartDate,
+      ),
+      input,
     ),
     provider,
     credentials,
