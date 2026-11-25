@@ -22,7 +22,7 @@ the plan depends on.
 1. A season plan carries `goals`: every dated race, goal or other dated target
    the athlete stated, in date order, each with a title, date, target and
    priority (`A`, `B` or `C`). A goal stated only as a month or year is included
-   with the last day of that period as its planning anchor and the athlete's
+   with the middle day of that period as its planning anchor and the athlete's
    words in `dateText`.
 2. Every season block summary and detailed block plan carries `subGoals`. A
    sub-goal names the goal it serves, the block's role for that goal (`build`,
@@ -138,7 +138,7 @@ existed are not retrofitted and do not fail.
 `apps/api/src/llm/promptRules.ts` owns the shared fragments:
 
 - `GOAL_LEDGER_RULES` describes the goal list, priorities, month/year planning
-  anchors and `dateText`, the complete season headline, backward planning, block
+  anchors and `dateText`, the season headline, backward planning, block
   coverage, recovery and taper accounting, and the rule that sub-goals are
   coach-defined rather than interpolated.
 - `GOAL_DEMAND_RULES` makes the coach derive the goal's required power, pace or
@@ -180,8 +180,10 @@ the analysis.
    that goal; recovery and taper blocks account for it explicitly.
 4. The prompt requires dated goals in date order, priorities, backward planning
    and block sub-goals built from coaching judgement. A month/year goal is
-   included with `dateText` and a last-day planning anchor.
-5. The season `goal` headline names every goal in order with its target.
+   included with `dateText` and a middle-day planning anchor.
+5. The season `goal` headline summarises the season's goals and shape; it need
+   not list every goal when there are many, but it must not imply a single-goal
+   season.
 6. The weekly, daily and update prompts require the week focus to name the block
    sub-goals it advances.
 7. The coach derives the goal-required performance from the input and states the

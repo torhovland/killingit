@@ -42,8 +42,8 @@ const seasonGoalSchema = z.object({
   /** A short name the athlete would recognise. */
   title: z.string().trim().min(1).max(120),
   /**
-   * The date the goal is achieved, or the latest date in the period the
-   * athlete gave when only a month or year is known.
+   * The date the goal is achieved, or the middle day of the period the athlete
+   * gave when only a month or year is known.
    */
   date: planDateSchema,
   /**

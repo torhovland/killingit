@@ -643,7 +643,7 @@ describe("formatPlanContext", () => {
   it("renders the season goal ledger and each block's sub-goals", () => {
     const subGoal = {
       goalTitle: "100 km gravel race",
-      goalDate: "2027-08-31",
+      goalDate: "2027-08-16",
       role: "build" as const,
       target: "3 h ride with race fuelling",
       byDate: "2027-07-18",
@@ -662,7 +662,7 @@ describe("formatPlanContext", () => {
         },
         {
           title: "100 km gravel race",
-          date: "2027-08-31",
+          date: "2027-08-16",
           dateText: "August 2027",
           priority: "A",
           target: "3:10 or faster",
@@ -686,7 +686,7 @@ describe("formatPlanContext", () => {
       "- August 2027 (A): 100 km gravel race — 3:10 or faster",
     );
     expect(season).toContain(
-      "   - 2027-08-31 100 km gravel race [build]: 3 h ride with race fuelling (by 2027-07-18)",
+      "   - 2027-08-16 100 km gravel race [build]: 3 h ride with race fuelling (by 2027-07-18)",
     );
 
     const block = formatBlockPlan({
@@ -707,7 +707,7 @@ describe("formatPlanContext", () => {
     });
     expect(block).toContain("Sub-goals:");
     expect(block).toContain(
-      "- 2027-08-31 100 km gravel race [build]: 3 h ride with race fuelling (by 2027-07-18)",
+      "- 2027-08-16 100 km gravel race [build]: 3 h ride with race fuelling (by 2027-07-18)",
     );
   });
 

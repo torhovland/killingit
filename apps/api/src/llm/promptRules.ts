@@ -128,9 +128,9 @@ const GOAL_LEDGER_RULES = `The athlete's dated goals and events may be spread ac
 
 In "season.goals", list every dated race, goal or other dated target the athlete stated, in date order, with its title, date, target and priority. Use the athlete's own dated goals and events; never invent one. Set every priority to "A" unless the athlete says otherwise or the coaching situation clearly justifies a lower priority. All goals may be A.
 
-The athlete's answers may give a goal with only a month or a year, such as "Paris-Brest-Paris in August 2027" or "a 200 km brevet in April". Include it: set "date" to the last day of that period and "dateText" to the athlete's own words, such as "August 2027". The date is a planning anchor, not a claim about the exact day. Never drop a goal because it lacks an exact day, and never invent a specific day.
+The athlete's answers may give a goal with only a month or a year, such as "Paris-Brest-Paris in August 2027" or "a 200 km brevet in April". Include it: set "date" to the middle day of that period (for August 2027, 2027-08-16; for 2027, 2027-07-02) and "dateText" to the athlete's own words, such as "August 2027". The date is a planning anchor, not a claim about the exact day. Never drop a goal because it lacks an exact day, and never invent a specific day.
 
-The season "goal" field is the one-sentence headline for the whole season: name every goal in order with its target, not only the next goal.
+The season "goal" field is the one-sentence headline for the whole season. Summarise the athlete's goals and the season's shape well. With a few goals, name them directly; with many, group or prioritise them, but never make the headline imply a single-goal season when the plan has several.
 
 For each goal, decide what performance it needs, the minimum specific preparation it needs, and when that preparation must start, including the taper before it and the recovery after it. If the time from today to the goal is shorter than that minimum, start the general preparation earlier or say plainly in the relevant rationale that the goal is not realistic from here and what is realistic.
 

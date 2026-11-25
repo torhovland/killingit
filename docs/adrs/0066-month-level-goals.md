@@ -21,11 +21,12 @@ The app was forcing an exact-day schema onto month-level goals.
 
 - Add an optional `dateText` to `SeasonGoal`.
 - When the athlete gives only a month or year, the coach includes the goal with
-  `date` set to the last day of that period as a planning anchor and `dateText`
-  set to the athlete's words, such as "August 2027". The anchor is not a claim
-  about the exact day.
-- The season `goal` headline must name every goal in order with its target, not
-  only the nearest one.
+  `date` set to the middle day of that period as a planning anchor and
+  `dateText` set to the athlete's words, such as "August 2027". The anchor is
+  not a claim about the exact day.
+- The season `goal` headline must summarise the goals and the season's shape.
+  It may name a few goals directly and group or prioritise them when there are
+  many, but it must not imply a single-goal season.
 - When a race goal has no distance, elevation or target time, the coach plans a
   completion target and asks one `coachQuestion` for the missing course details
   and target rather than inventing them.
@@ -35,8 +36,9 @@ The app was forcing an exact-day schema onto month-level goals.
 - **Allow a null goal date.** The block coverage and sub-goal references need a
   date to decide which blocks must account for the goal; a null would need a
   second coverage model.
-- **Use the first day of the month.** It would stop requiring coverage too early
-  for a goal late in the month. The last day is the safe anchor.
+- **Use the last day of the month.** It makes the anchor look like a late-month
+  event and skews coverage toward the end of the period. The middle day is the
+  neutral anchor.
 - **Leave it to the model's prose.** The Test plan shows that the model will
   mention PBP in block names while omitting it from the structured ledger.
 
@@ -49,4 +51,5 @@ The app was forcing an exact-day schema onto month-level goals.
 - The schema field is optional, so existing stored plans still parse.
 - The goal-steering benchmark season revision now keeps Atlas, the 200 km
   brevet and PBP in `season.goals`, with sub-goals in every block leading to
-  them.
+  them. The headline summarises all of them without listing four separate
+  goal dates.

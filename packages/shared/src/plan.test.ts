@@ -341,7 +341,7 @@ describe("goal ledger schemas", () => {
         goals: [
           {
             title: "Paris-Brest-Paris",
-            date: "2027-08-31",
+            date: "2027-08-16",
             dateText: "August 2027",
             priority: "A",
             target: "Finish comfortably",
@@ -350,7 +350,7 @@ describe("goal ledger schemas", () => {
       },
     });
     expect(parsed.season.goals?.[0]?.dateText).toBe("August 2027");
-    expect(parsed.season.goals?.[0]?.date).toBe("2027-08-31");
+    expect(parsed.season.goals?.[0]?.date).toBe("2027-08-16");
   });
 
   it("rejects an unknown priority or sub-goal role", () => {
