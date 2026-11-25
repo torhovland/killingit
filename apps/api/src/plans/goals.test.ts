@@ -174,7 +174,7 @@ describe("seasonGoalProblems", () => {
         goals: [
           HALF,
           GRAVEL,
-          { ...GRAVEL, title: "Later goal", date: "2027-08-22" },
+          { ...GRAVEL, title: "Later goal", date: "2027-09-12" },
         ],
         blocks: [
           {
@@ -198,7 +198,7 @@ describe("seasonGoalProblems", () => {
       { today: TODAY },
     );
     expect(problems).toContain(
-      'The season block "Gravel build" does not account for the goal "Later goal" on 2027-08-22.',
+      'The season block "Gravel build" does not account for the goal "Later goal" on 2027-09-12.',
     );
   });
 
@@ -275,6 +275,21 @@ describe("blockGoalProblems", () => {
     expect(blockGoalProblems(without, season(), { today: TODAY })).toContain(
       'The block "Gravel build" must carry "subGoals" for every goal still ahead of it.',
     );
+  });
+
+  it("ignores a cosmetic difference in the goal title", () => {
+    const titled = block({
+      subGoals: [
+        {
+          goalTitle: "2027-08-22 100 km gravel race",
+          goalDate: GRAVEL.date,
+          role: "build",
+          target: "3 h ride",
+          byDate: "2027-07-18",
+        },
+      ],
+    });
+    expect(blockGoalProblems(titled, season(), { today: TODAY })).toEqual([]);
   });
 
   it("rejects sub-goals that differ from the season summary", () => {

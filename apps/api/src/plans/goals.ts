@@ -43,8 +43,10 @@ function requiredEventDates(
 }
 
 function sameSubGoal(a: BlockSubGoal, b: BlockSubGoal): boolean {
+  // The title is a display label; the goal date and the coaching content are
+  // what make two sub-goals the same. A model may write "2027-05-23 Half
+  // marathon" in one level and "Half marathon" in another.
   return (
-    a.goalTitle === b.goalTitle &&
     a.goalDate === b.goalDate &&
     a.role === b.role &&
     a.target === b.target &&
@@ -74,15 +76,12 @@ function goalIsAheadOfBlock(
   return goal.date >= block.startDate;
 }
 
-/** The sub-goals that name `goal` by its exact title and date. */
+/** The sub-goals that reference `goal` by its date. */
 function subGoalsFor(
   subGoals: readonly BlockSubGoal[],
   goal: SeasonGoal,
 ): BlockSubGoal[] {
-  return subGoals.filter(
-    (subGoal) =>
-      subGoal.goalTitle === goal.title && subGoal.goalDate === goal.date,
-  );
+  return subGoals.filter((subGoal) => subGoal.goalDate === goal.date);
 }
 
 /**
@@ -107,10 +106,7 @@ export function blockGoalProblems(
   const ahead = goalsAhead(season, input.today);
   const problems: string[] = [];
   for (const subGoal of block.subGoals) {
-    const goal = goals.find(
-      (entry) =>
-        entry.title === subGoal.goalTitle && entry.date === subGoal.goalDate,
-    );
+    const goal = goals.find((entry) => entry.date === subGoal.goalDate);
     if (goal === undefined) {
       problems.push(
         `The block "${block.name}" has a sub-goal for "${subGoal.goalTitle}" on ${subGoal.goalDate}, which is not in the season's goals.`,
@@ -193,12 +189,7 @@ export function seasonGoalProblems(
       continue;
     }
     for (const subGoal of block.subGoals) {
-      if (
-        !goals.some(
-          (goal) =>
-            goal.title === subGoal.goalTitle && goal.date === subGoal.goalDate,
-        )
-      ) {
+      if (!goals.some((goal) => goal.date === subGoal.goalDate)) {
         problems.push(
           `The season block "${block.name}" has a sub-goal for "${subGoal.goalTitle}" on ${subGoal.goalDate}, which is not in the season's goals.`,
         );
