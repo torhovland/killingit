@@ -21,7 +21,9 @@ the plan depends on.
 
 1. A season plan carries `goals`: every dated race, goal or other dated target
    the athlete stated, in date order, each with a title, date, target and
-   priority (`A`, `B` or `C`).
+   priority (`A`, `B` or `C`). A goal stated only as a month or year is included
+   with the last day of that period as its planning anchor and the athlete's
+   words in `dateText`.
 2. Every season block summary and detailed block plan carries `subGoals`. A
    sub-goal names the goal it serves, the block's role for that goal (`build`,
    `maintain` or `accept-decline`), a coach-defined measurable target, and the
@@ -88,6 +90,8 @@ type GoalPriority = "A" | "B" | "C";
 interface SeasonGoal {
   title: string;
   date: string;
+  /** The athlete's wording when only a month or year is known. */
+  dateText?: string | null;
   priority: GoalPriority;
   target: string;
 }
@@ -133,8 +137,9 @@ existed are not retrofitted and do not fail.
 
 `apps/api/src/llm/promptRules.ts` owns the shared fragments:
 
-- `GOAL_LEDGER_RULES` describes the goal list, priorities, backward planning,
-  block coverage, recovery and taper accounting, and the rule that sub-goals are
+- `GOAL_LEDGER_RULES` describes the goal list, priorities, month/year planning
+  anchors and `dateText`, the complete season headline, backward planning, block
+  coverage, recovery and taper accounting, and the rule that sub-goals are
   coach-defined rather than interpolated.
 - `GOAL_DEMAND_RULES` makes the coach derive the goal's required power, pace or
   time from the input, anchor it to a prior comparable result, and state the
@@ -174,22 +179,24 @@ the analysis.
 3. Every block that starts before a goal date carries at least one sub-goal for
    that goal; recovery and taper blocks account for it explicitly.
 4. The prompt requires dated goals in date order, priorities, backward planning
-   and block sub-goals built from coaching judgement.
-5. The weekly, daily and update prompts require the week focus to name the block
+   and block sub-goals built from coaching judgement. A month/year goal is
+   included with `dateText` and a last-day planning anchor.
+5. The season `goal` headline names every goal in order with its target.
+6. The weekly, daily and update prompts require the week focus to name the block
    sub-goals it advances.
-6. The coach derives the goal-required performance from the input and states the
+7. The coach derives the goal-required performance from the input and states the
    current gap; a stated threshold from the prior-result period is enough to
    anchor it. A `build` sub-goal carries the numeric required target and the
    weekly FTP estimate reaches it.
-7. The load audit reconciles planned hours and session TSS, and treats completed
+8. The load audit reconciles planned hours and session TSS, and treats completed
    easy sessions as evidence of under-load.
-8. A past race or goal remains in the prompt context, marked `past`; a past trip
+9. A past race or goal remains in the prompt context, marked `past`; a past trip
    does not.
-9. The goal-steering benchmark fixture and validator carry the structured fields,
-   and the judge rubric expects at least 280 W from the prior 285 W anchor.
-10. The season simulation records a test workout at the modelled current
+10. The goal-steering benchmark fixture and validator carry the structured fields,
+    and the judge rubric expects at least 280 W from the prior 285 W anchor.
+11. The season simulation records a test workout at the modelled current
     performance and states the result in the activity analysis.
-11. Typecheck, lint, format, unused-export check and tests pass.
+12. Typecheck, lint, format, unused-export check and tests pass.
 
 ## Testing
 

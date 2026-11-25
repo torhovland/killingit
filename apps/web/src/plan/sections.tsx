@@ -129,7 +129,7 @@ export function SeasonGoalList({
         {goals.map((goal) => (
           <li key={`${goal.date}-${goal.title}`}>
             <span className="font-medium">
-              {formatPlanDate(goal.date)} ({goal.priority})
+              {goal.dateText ?? formatPlanDate(goal.date)} ({goal.priority})
             </span>
             <Bullet />
             {goal.title}: {goal.target}

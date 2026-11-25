@@ -41,8 +41,17 @@ export type GoalPriority = z.infer<typeof goalPrioritySchema>;
 const seasonGoalSchema = z.object({
   /** A short name the athlete would recognise. */
   title: z.string().trim().min(1).max(120),
-  /** The date the goal is achieved, normally the event or target date. */
+  /**
+   * The date the goal is achieved, or the latest date in the period the
+   * athlete gave when only a month or year is known.
+   */
   date: planDateSchema,
+  /**
+   * The athlete's own wording when the date is not an exact day, such as
+   * "August 2027". The date above is then a planning anchor, not a claim
+   * about the exact day.
+   */
+  dateText: z.string().trim().min(1).max(80).nullable().optional(),
   priority: goalPrioritySchema,
   /** The outcome the coach is planning toward, in the athlete's terms. */
   target: z.string().trim().min(1),
