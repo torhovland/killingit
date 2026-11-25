@@ -152,6 +152,20 @@ describe("activity generation", () => {
     });
     expect(easy.normalizedPower).toBe(138);
     expect(easy.analysis?.text).not.toContain("Test result");
+
+    const negative = buildSessionActivity({
+      session: session({
+        title: "Controlled pace run",
+        description:
+          "Develop sustained running effort without turning the session into a time trial.",
+        durationMinutes: 60,
+        estimatedTss: 40,
+      }),
+      capability: { ftpWatts: 252, runThresholdSecPerKm: 330 },
+      profile: ATHLETE,
+      id: 10,
+    });
+    expect(negative.analysis?.text).not.toContain("Test result");
   });
 
   it("recognises a rehearsal named in a title", () => {
@@ -167,6 +181,21 @@ describe("activity generation", () => {
       id: 9,
     });
     expect(activity.analysis?.text).toContain("Test result: FTP 249 W");
+  });
+
+  it("recognises an explicitly included time trial in a description", () => {
+    const activity = buildSessionActivity({
+      session: session({
+        title: "Endurance ride",
+        description: "Include a controlled 20-minute time trial near the end.",
+        durationMinutes: 90,
+        estimatedTss: 70,
+      }),
+      capability: { ftpWatts: 252, runThresholdSecPerKm: 330 },
+      profile: ATHLETE,
+      id: 11,
+    });
+    expect(activity.analysis?.text).toContain("Test result: FTP 252 W");
   });
 
   it("records a running threshold test at the modelled current pace", () => {

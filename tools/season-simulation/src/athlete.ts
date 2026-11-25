@@ -20,7 +20,7 @@ const MIN_SESSION_TSS = 10;
 const TEST_TITLE_PATTERN =
   /\b(?:test|testing|time trial|tt|benchmark|rehearsal|race simulation)\b/i;
 const TEST_DESCRIPTION_PATTERN =
-  /\b(?:ftp|threshold|field|fitness|performance|power|pace|heart[- ]rate|lactate|vo2(?:max)?)\s+test\b|\btime trial\b|\brace (?:rehearsal|simulation)\b|\btest (?:the|your|how|whether)\b/i;
+  /\b(?:ftp|threshold|field|fitness|performance|power|pace|heart[- ]rate|lactate|vo2(?:max)?)\s+test\b|\b(?:include|including|with|add|as)\b[^.]{0,60}\b(?:time trial|test)\b|\brace (?:rehearsal|simulation)\b|\btest (?:the|your|how|whether)\b/i;
 
 const SPORT_PATTERNS: ReadonlyArray<{ sport: string; pattern: RegExp }> = [
   {
