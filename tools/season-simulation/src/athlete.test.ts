@@ -123,6 +123,52 @@ describe("activity generation", () => {
     expect(activity.analysis?.text).not.toContain("Test result");
   });
 
+  it("does not treat a passing mention of testing or a rehearsal as a test", () => {
+    const intervals = buildSessionActivity({
+      session: session({
+        title: "Controlled half-marathon pace intervals",
+        description:
+          "Controlled repetitions develop sustainable running strength and test comfort near goal pace.",
+        durationMinutes: 70,
+        estimatedTss: 75,
+      }),
+      capability: { ftpWatts: 252, runThresholdSecPerKm: 330 },
+      profile: ATHLETE,
+      id: 7,
+    });
+    expect(intervals.analysis?.text).not.toContain("Test result");
+
+    const easy = buildSessionActivity({
+      session: session({
+        title: "Easy endurance ride",
+        description:
+          "Comfortable aerobic ride maintains frequency without compromising the key weekend rehearsal.",
+        durationMinutes: 60,
+        estimatedTss: 30,
+      }),
+      capability: { ftpWatts: 252, runThresholdSecPerKm: 330 },
+      profile: ATHLETE,
+      id: 8,
+    });
+    expect(easy.normalizedPower).toBe(138);
+    expect(easy.analysis?.text).not.toContain("Test result");
+  });
+
+  it("recognises a rehearsal named in a title", () => {
+    const activity = buildSessionActivity({
+      session: session({
+        title: "Hilly gravel endurance rehearsal",
+        description: "Practise race pacing and fuelling.",
+        durationMinutes: 210,
+        estimatedTss: 180,
+      }),
+      capability: { ftpWatts: 249, runThresholdSecPerKm: 325 },
+      profile: ATHLETE,
+      id: 9,
+    });
+    expect(activity.analysis?.text).toContain("Test result: FTP 249 W");
+  });
+
   it("records a running threshold test at the modelled current pace", () => {
     const activity = buildSessionActivity({
       session: session({

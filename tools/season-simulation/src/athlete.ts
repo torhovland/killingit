@@ -11,9 +11,16 @@ import type { AthleteProfile, Cadence, Capability, RaceGoal } from "./types.js";
 const MAX_SESSION_TSS = 250;
 const MIN_SESSION_TSS = 10;
 
-/** A title or description that prescribes a test rather than ordinary work. */
-const TEST_PATTERN =
-  /\b(?:test|testing|time trial|tt|field test|ftp test|threshold test|benchmark|race simulation|race rehearsal|rehearsal)\b/i;
+/**
+ * A title that names a test, time trial or rehearsal. A description is more
+ * ambiguous: "test comfort near goal pace" or "without compromising the key
+ * weekend rehearsal" mentions testing without prescribing one, so a
+ * description needs a test noun or an explicit instruction.
+ */
+const TEST_TITLE_PATTERN =
+  /\b(?:test|testing|time trial|tt|benchmark|rehearsal|race simulation)\b/i;
+const TEST_DESCRIPTION_PATTERN =
+  /\b(?:ftp|threshold|field|fitness|performance|power|pace|heart[- ]rate|lactate|vo2(?:max)?)\s+test\b|\btime trial\b|\brace (?:rehearsal|simulation)\b|\btest (?:the|your|how|whether)\b/i;
 
 const SPORT_PATTERNS: ReadonlyArray<{ sport: string; pattern: RegExp }> = [
   {
@@ -55,7 +62,8 @@ function sportInText(text: string): string | null {
 function isTestSession(session: WeekSession): boolean {
   return (
     session.type === "workout" &&
-    (TEST_PATTERN.test(session.title) || TEST_PATTERN.test(session.description))
+    (TEST_TITLE_PATTERN.test(session.title) ||
+      TEST_DESCRIPTION_PATTERN.test(session.description))
   );
 }
 
