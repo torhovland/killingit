@@ -305,6 +305,116 @@ describe("coachPlanSchema", () => {
   });
 });
 
+describe("goal ledger schemas", () => {
+  it("accepts a dated goal with a priority", () => {
+    const plan = makePlan();
+    const parsed = coachPlanSchema.parse({
+      ...plan,
+      season: {
+        ...plan.season,
+        goals: [
+          {
+            title: "Sub-2:00 half marathon",
+            date: "2027-05-23",
+            priority: "A",
+            target: "Under 2:00",
+          },
+        ],
+      },
+    });
+    expect(parsed.season.goals?.[0]).toEqual({
+      title: "Sub-2:00 half marathon",
+      date: "2027-05-23",
+      priority: "A",
+      target: "Under 2:00",
+    });
+  });
+
+  it("rejects an unknown priority or sub-goal role", () => {
+    const plan = makePlan();
+    expect(
+      coachPlanSchema.safeParse({
+        ...plan,
+        season: {
+          ...plan.season,
+          goals: [
+            {
+              title: "Gravel race",
+              date: "2027-08-22",
+              priority: "primary",
+              target: "3:10 or faster",
+            },
+          ],
+        },
+      }).success,
+    ).toBe(false);
+    expect(
+      coachPlanSchema.safeParse({
+        ...plan,
+        block: {
+          ...plan.block,
+          subGoals: [
+            {
+              goalTitle: "Gravel race",
+              goalDate: "2027-08-22",
+              role: "peak",
+              target: "3 h ride",
+              byDate: "2027-08-01",
+            },
+          ],
+        },
+      }).success,
+    ).toBe(false);
+  });
+
+  it("parses goals and block sub-goals, and still parses a legacy plan", () => {
+    const plan = makePlan();
+    const parsed = coachPlanSchema.parse({
+      ...plan,
+      season: {
+        ...plan.season,
+        goals: [
+          {
+            title: "Sub-2:00 half marathon",
+            date: "2027-05-23",
+            priority: "A",
+            target: "Under 2:00",
+          },
+        ],
+        blocks: plan.season.blocks.map((block) => ({
+          ...block,
+          subGoals: [
+            {
+              goalTitle: "Sub-2:00 half marathon",
+              goalDate: "2027-05-23",
+              role: "build",
+              target: "10 km tempo at 5:20/km",
+              byDate: "2027-03-14",
+            },
+          ],
+        })),
+      },
+      block: {
+        ...plan.block,
+        subGoals: [
+          {
+            goalTitle: "Sub-2:00 half marathon",
+            goalDate: "2027-05-23",
+            role: "build",
+            target: "10 km tempo at 5:20/km",
+            byDate: "2027-03-14",
+          },
+        ],
+      },
+    });
+
+    expect(parsed.season.goals?.[0]?.priority).toBe("A");
+    expect(parsed.season.blocks[0]?.subGoals?.[0]?.role).toBe("build");
+    expect(parsed.block.subGoals?.[0]?.byDate).toBe("2027-03-14");
+    expect(coachPlanSchema.parse(plan).season.goals).toBeUndefined();
+  });
+});
+
 describe("coachPlanResponseSchema", () => {
   it("accepts an empty state with a generation status", () => {
     const parsed = coachPlanResponseSchema.parse({

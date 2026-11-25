@@ -78,6 +78,13 @@ and Day plan tabs, and give the coach the same list when it plans.
 - A week with no stored plan and no activity still carries zeroed stats, so
   every row shows a consistent box.
 
+### Goal ledger
+
+The stored events are the input to the season's structured goal ledger. The
+season plan lists each dated race or goal in `goals` with a priority and target,
+and every block carries the sub-goals that account for the goals still ahead.
+Trips remain constraints rather than goals. See `docs/specs/goal-ledger.md`.
+
 ### Week and Day plan tabs
 
 - The plan response carries the stored events.

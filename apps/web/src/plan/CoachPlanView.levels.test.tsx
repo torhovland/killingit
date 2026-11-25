@@ -54,6 +54,13 @@ describe("CoachPlanView levels", () => {
     expect(season).toContain(
       "Build a strong aerobic base before marathon-specific work.",
     );
+    expect(season).toContain('data-testid="season-goals"');
+    expect(season).toContain("Season goals");
+    expect(season).toContain("Sub-4-hour marathon: Under 4:00");
+    expect(season).toContain('data-testid="season-block-goals"');
+    expect(block).toContain('data-testid="block-goals"');
+    expect(block).toContain("Block goals");
+    expect(block).toContain("Six consistent weeks of aerobic running");
   });
 
   it("shows the coach's introduction on the Season tab", () => {

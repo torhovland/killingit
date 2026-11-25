@@ -73,8 +73,12 @@ group. The judge rewards a candid statement that the goal is at risk or out of
 reach from here, what is realistic, and a materially more ambitious safe block
 that uses the athlete's stated 8-10 hours. A week that stays in the same
 210-280 TSS range is treated as the timid prescription that created the problem.
-There is no mechanical gate on this prompt: it is a coaching judgement, not a
-keyword.
+The stored plan carries the structured goal ledger and a modest gravel sub-goal;
+the response must keep the ledger coherent and raise the sub-goal target, not
+repeat the timid 3 hour/252 W target. A test is optional and is rewarded only
+when it is embedded in a productive workout and answers a question the plan
+depends on. There is no mechanical gate on this prompt: it is a coaching
+judgement, not a keyword.
 
 A model that reaches the speed-F limit (10 minutes across the two core prompts)
 is stopped, skipped by the judge, and recorded with ability `?` rather than F, so

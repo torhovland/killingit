@@ -8,6 +8,7 @@ import {
   PlanList,
   PlanListItem,
   RefreshingOverlay,
+  SubGoalList,
   ThresholdsLine,
 } from "./sections";
 
@@ -67,6 +68,7 @@ export function BlockSection({
           className="mt-3 text-base text-muted-foreground"
           testId="block-focus"
         />
+        <SubGoalList subGoals={block.subGoals} testId="block-goals" />
         <div className="mt-3 flex flex-col gap-1 text-base">
           <p className="font-medium">Coach's rationale</p>
           <FormattedText

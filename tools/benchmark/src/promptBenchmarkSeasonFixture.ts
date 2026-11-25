@@ -2,9 +2,11 @@ import {
   addDays,
   type AthleteEvent,
   type BlockPlan,
+  type BlockSubGoal,
   type DailyWeather,
   type DayPlan,
   type MetricPoint,
+  type SeasonGoal,
   type SeasonPlan,
   type ThresholdSummary,
   type WeekPlan,
@@ -26,6 +28,8 @@ import type { AthleteAnswerContext } from "../../../apps/api/src/llm/profileCont
  * compliant season run (`results-full-previous.json`, the run that finished
  * 3:24:14 against the 3:10 target). The fixture is code rather than a frozen
  * prompt so every prompt-rule or contract change still reaches the benchmark.
+ * The stored season carries the structured goal ledger and the under-loaded
+ * gravel block carries the modest sub-goal target the refresh must revise.
  */
 
 export const GOAL_STEERING_TODAY = "2027-07-04";
@@ -657,6 +661,39 @@ function weekSessions(): WeekSession[] {
   }));
 }
 
+const GOAL_STEERING_GOALS: readonly SeasonGoal[] = [
+  {
+    title: "Sub-2:00 half marathon",
+    date: "2027-05-23",
+    priority: "A",
+    target: "Under 2:00",
+  },
+  {
+    title: "100 km gravel race",
+    date: "2027-08-22",
+    priority: "A",
+    target: "3:10 or faster",
+  },
+];
+
+function subGoal(
+  goal: SeasonGoal,
+  role: BlockSubGoal["role"],
+  target: string,
+  byDate: string,
+): BlockSubGoal {
+  return {
+    goalTitle: goal.title,
+    goalDate: goal.date,
+    role,
+    target,
+    byDate,
+  };
+}
+
+const HALF = GOAL_STEERING_GOALS[0] as SeasonGoal;
+const GRAVEL = GOAL_STEERING_GOALS[1] as SeasonGoal;
+
 /** The season the athlete is part way through in the goal test. */
 export function goalSteeringSeasonPlan(): SeasonPlan {
   return {
@@ -668,6 +705,7 @@ export function goalSteeringSeasonPlan(): SeasonPlan {
     estimatedFtpWatts: 250,
     rationale:
       "Two goals anchor the season: a sub-2:00 half marathon in May, then a 100 km gravel race in 3:10 in August. The season builds an aerobic base through the Norwegian winter, develops running durability into the half marathon, recovers, then converts cycling fitness into gravel-specific long-ride durability and sustained climbing power. The gravel target is ambitious for a 180 W starting point; the long ride and sustained-power work are the two levers that matter.",
+    goals: [...GOAL_STEERING_GOALS],
     blocks: [
       {
         name: "Return to training",
@@ -675,6 +713,20 @@ export function goalSteeringSeasonPlan(): SeasonPlan {
         startDate: "2026-11-22",
         endDate: "2026-12-19",
         weekCount: 4,
+        subGoals: [
+          subGoal(
+            HALF,
+            "build",
+            "Four easy aerobic sessions a week and a weekly long run-walk",
+            "2026-12-19",
+          ),
+          subGoal(
+            GRAVEL,
+            "maintain",
+            "Two easy rides a week and a baseline FTP near 190 W",
+            "2026-12-19",
+          ),
+        ],
         dietProgress: null,
       },
       {
@@ -683,6 +735,20 @@ export function goalSteeringSeasonPlan(): SeasonPlan {
         startDate: "2026-12-20",
         endDate: "2027-02-13",
         weekCount: 8,
+        subGoals: [
+          subGoal(
+            HALF,
+            "build",
+            "One controlled threshold run a week and a 90-minute long run",
+            "2027-02-13",
+          ),
+          subGoal(
+            GRAVEL,
+            "maintain",
+            "Two rides a week including one two-hour ride, FTP near 220 W",
+            "2027-02-13",
+          ),
+        ],
         dietProgress: null,
       },
       {
@@ -692,6 +758,20 @@ export function goalSteeringSeasonPlan(): SeasonPlan {
         startDate: "2027-02-14",
         endDate: "2027-04-10",
         weekCount: 8,
+        subGoals: [
+          subGoal(
+            HALF,
+            "build",
+            "10 km tempo at 5:30/km and a 16 km long run",
+            "2027-04-10",
+          ),
+          subGoal(
+            GRAVEL,
+            "maintain",
+            "FTP at least 250 W and one ride of 2.5 hours",
+            "2027-04-10",
+          ),
+        ],
         dietProgress: null,
       },
       {
@@ -701,6 +781,20 @@ export function goalSteeringSeasonPlan(): SeasonPlan {
         startDate: "2027-04-11",
         endDate: "2027-05-23",
         weekCount: 6,
+        subGoals: [
+          subGoal(
+            HALF,
+            "build",
+            "Race-pace long run, then taper to run under 2:00",
+            "2027-05-23",
+          ),
+          subGoal(
+            GRAVEL,
+            "maintain",
+            "FTP at least 255 W and two rides a week through the taper",
+            "2027-05-23",
+          ),
+        ],
         dietProgress: null,
       },
       {
@@ -709,6 +803,14 @@ export function goalSteeringSeasonPlan(): SeasonPlan {
         startDate: "2027-05-24",
         endDate: "2027-06-20",
         weekCount: 4,
+        subGoals: [
+          subGoal(
+            GRAVEL,
+            "build",
+            "Recover, then three rides a week and a 2.5-hour long ride",
+            "2027-06-20",
+          ),
+        ],
         dietProgress: null,
       },
       {
@@ -718,6 +820,14 @@ export function goalSteeringSeasonPlan(): SeasonPlan {
         startDate: "2027-06-21",
         endDate: "2027-08-07",
         weekCount: 7,
+        subGoals: [
+          subGoal(
+            GRAVEL,
+            "build",
+            "Extend the long ride to 3 hours and lift FTP to 252 W",
+            "2027-08-07",
+          ),
+        ],
         dietProgress: null,
       },
       {
@@ -727,6 +837,14 @@ export function goalSteeringSeasonPlan(): SeasonPlan {
         startDate: "2027-08-08",
         endDate: "2027-08-22",
         weekCount: 2,
+        subGoals: [
+          subGoal(
+            GRAVEL,
+            "build",
+            "Sharpen, then race the 100 km gravel event",
+            "2027-08-22",
+          ),
+        ],
         dietProgress: null,
       },
       {
@@ -735,6 +853,7 @@ export function goalSteeringSeasonPlan(): SeasonPlan {
         startDate: "2027-08-23",
         endDate: "2027-08-29",
         weekCount: 1,
+        subGoals: [],
         dietProgress: null,
       },
     ],
@@ -753,6 +872,14 @@ export function goalSteeringBlockPlan(): BlockPlan {
     estimatedFtpWatts: 248,
     rationale:
       "Seven weeks that turn cycling volume into gravel speed: a long ride grows every week except a mid-block consolidation, one controlled sustained-power or climbing session each week, and the rest easy. The final week starts the taper. The 3:10 target needs the long ride to reach three hours and the quality work to raise FTP, so the block is judged against that gap.",
+    subGoals: [
+      subGoal(
+        GRAVEL,
+        "build",
+        "Extend the long ride to 3 hours and lift FTP to 252 W",
+        "2027-08-07",
+      ),
+    ],
     weeks: [
       {
         number: 1,

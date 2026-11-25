@@ -193,7 +193,11 @@ The goal-steering prompt is built from the moment in the full-season test when
 the 3:10 gravel goal is slipping: Sunday 2027-07-04, seven weeks before the
 race, with a compliant athlete at about 247 W FTP and 31 CTL after a block that
 only prescribed 215-280 TSS weeks and a weekly note saying every workout felt
-easy. The judge is given the harness's independent course model as ground
+easy. Its stored season carries the two 2027 goals in the structured goal
+ledger and the gravel block carries a modest sub-goal target, so the response
+must revise the ledger instead of silently keeping the timid target. The
+validator requires `goals` and `subGoals`; the judge rewards raising the target
+and accounts for any future goal rather than only the next one. The judge is given the harness's independent course model as ground
 truth, recognises that 3:10 needs about 281 W in a group, and rewards a candid
 read of the gap plus a materially more ambitious safe block rather than another
 timid week. It is the prompt that distinguishes a model which steers from one

@@ -36,7 +36,9 @@ before the generation fails.
    for: a returned today must be one of the current week's sessions, a returned
    tomorrow must be in the current or next week, and a returned next week must
    start on its Monday. The repair turn repeats only the dates and levels the
-   contract asks for. See ADR 0063.
+   contract asks for. See ADR 0063. A generated season without its `goals` or a
+   block without `subGoals` is rejected the same way, so the coach's one repair
+   turn can add the goal ledger. See `docs/specs/goal-ledger.md`.
 
 ### Out of scope
 

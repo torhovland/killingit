@@ -11,6 +11,7 @@ import {
   buildSessionActivity,
   checkSessionFeasibility,
   formatClock,
+  formatPace,
   inferSport,
   isTrainingDay,
   plannedSessionTss,
@@ -576,11 +577,6 @@ function measuredTss(
     );
   }
   return hours * 50;
-}
-
-function formatPace(secondsPerKm: number): string {
-  const total = Math.round(secondsPerKm);
-  return `${String(Math.floor(total / 60))}:${String(total % 60).padStart(2, "0")} /km`;
 }
 
 /** Sentences in the week plan that talk about goals or feasibility. */

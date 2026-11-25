@@ -626,6 +626,73 @@ describe("formatPlanContext", () => {
     expect(text).toContain("- Activity 99: An older session.");
   });
 
+  it("renders the season goal ledger and each block's sub-goals", () => {
+    const subGoal = {
+      goalTitle: "100 km gravel race",
+      goalDate: "2027-08-22",
+      role: "build" as const,
+      target: "3 h ride with race fuelling",
+      byDate: "2027-07-18",
+    };
+    const season = formatSeasonPlan({
+      goal: "Half marathon, then gravel",
+      startDate: "2026-11-22",
+      endDate: "2027-08-29",
+      rationale: "Build both goals.",
+      goals: [
+        {
+          title: "Sub-2:00 half marathon",
+          date: "2027-05-23",
+          priority: "A",
+          target: "Under 2:00",
+        },
+        {
+          title: "100 km gravel race",
+          date: "2027-08-22",
+          priority: "A",
+          target: "3:10 or faster",
+        },
+      ],
+      blocks: [
+        {
+          name: "Gravel build",
+          focus: "Build gravel durability.",
+          startDate: "2027-06-21",
+          endDate: "2027-08-07",
+          weekCount: 7,
+          subGoals: [subGoal],
+        },
+      ],
+    });
+    expect(season).toContain(
+      "- 2027-05-23 (A): Sub-2:00 half marathon — Under 2:00",
+    );
+    expect(season).toContain(
+      "   - 2027-08-22 100 km gravel race [build]: 3 h ride with race fuelling (by 2027-07-18)",
+    );
+
+    const block = formatBlockPlan({
+      name: "Gravel build",
+      focus: "Build gravel durability.",
+      startDate: "2027-06-21",
+      endDate: "2027-08-07",
+      rationale: "Build toward the gravel race.",
+      subGoals: [subGoal],
+      weeks: [
+        {
+          number: 1,
+          startDate: "2027-06-21",
+          focus: "Start the build.",
+          targetLoad: "5 hours",
+        },
+      ],
+    });
+    expect(block).toContain("Sub-goals:");
+    expect(block).toContain(
+      "- 2027-08-22 100 km gravel race [build]: 3 h ride with race fuelling (by 2027-07-18)",
+    );
+  });
+
   it("renders stored diet progress at every plan level", () => {
     const season = formatSeasonPlan({
       goal: "Ride a century",

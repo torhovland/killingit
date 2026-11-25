@@ -1,6 +1,7 @@
 import type { CoachPlan } from "@killingit/shared";
 import { addDays, startOfWeek } from "@killingit/shared";
 import { calorieEstimateProblems } from "./calorieEstimates.js";
+import { planGoalProblems } from "./goals.js";
 import { blockFor, weekFor } from "./periods.js";
 import { PlanValidationError } from "./planValidationError.js";
 
@@ -20,6 +21,10 @@ export function assertPlanValid(
     throw new PlanValidationError(calorieProblem.message);
   }
   assertSeasonBlocksContiguous(plan.season, today);
+  const goalProblem = planGoalProblems(plan, { today })[0];
+  if (goalProblem !== undefined) {
+    throw new PlanValidationError(goalProblem);
+  }
   if (plan.today.date !== today) {
     throw new PlanValidationError(
       "The coach returned today's session for the wrong date.",

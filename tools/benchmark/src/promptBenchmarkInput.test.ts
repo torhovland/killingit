@@ -107,11 +107,16 @@ describe("benchmark prompts", () => {
     expect(reviseSeason).toContain("Atlas Mountain Race on 28 February 2027");
   });
 
-  it("puts the at-risk gravel goal from the season test in the prompt", () => {
+  it("puts the at-risk gravel goal and its ledger in the prompt", () => {
     expect(goalSteering).toContain("100 km gravel race");
     expect(goalSteering).toContain("3:10 or faster");
     expect(goalSteering).toMatch(/FTP[: ]+247 W/);
     expect(goalSteering).toContain("Every workout this week felt easy");
+    expect(goalSteering).toContain("Goals:");
+    expect(goalSteering).toContain("Sub-goals:");
+    expect(goalSteering).toContain(
+      "Extend the long ride to 3 hours and lift FTP to 252 W",
+    );
   });
 
   /**

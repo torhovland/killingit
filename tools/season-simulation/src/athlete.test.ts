@@ -82,6 +82,65 @@ describe("activity generation", () => {
     expect(tss).toBeCloseTo(target, 0);
   });
 
+  it("records a cycling test at the modelled current capability", () => {
+    const activity = buildSessionActivity({
+      session: session({
+        title: "FTP test",
+        description: "Twenty-minute test inside an endurance ride.",
+        durationMinutes: 60,
+        estimatedTss: 40,
+      }),
+      capability: { ftpWatts: 252, runThresholdSecPerKm: 330 },
+      profile: ATHLETE,
+      id: 3,
+    });
+    expect(activity.normalizedPower).toBe(252);
+    expect(activity.analysis?.text).toContain("Test result: FTP 252 W");
+  });
+
+  it("recognises a test described inside a normal workout", () => {
+    const activity = buildSessionActivity({
+      session: session({
+        title: "Endurance ride",
+        description: "Include a 20-minute FTP test in the middle.",
+        durationMinutes: 90,
+        estimatedTss: 70,
+      }),
+      capability: { ftpWatts: 252, runThresholdSecPerKm: 330 },
+      profile: ATHLETE,
+      id: 5,
+    });
+    expect(activity.analysis?.text).toContain("Test result: FTP 252 W");
+  });
+
+  it("leaves an ordinary workout without a test result", () => {
+    const activity = buildSessionActivity({
+      session: session(),
+      capability: { ftpWatts: 252, runThresholdSecPerKm: 330 },
+      profile: ATHLETE,
+      id: 6,
+    });
+    expect(activity.analysis?.text).not.toContain("Test result");
+  });
+
+  it("records a running threshold test at the modelled current pace", () => {
+    const activity = buildSessionActivity({
+      session: session({
+        title: "Threshold run test",
+        description: "A controlled 30-minute test.",
+        durationMinutes: 60,
+        estimatedTss: 40,
+      }),
+      capability: { ftpWatts: 252, runThresholdSecPerKm: 330 },
+      profile: ATHLETE,
+      id: 4,
+    });
+    expect(activity.movingTime).toBe(3600);
+    expect(activity.analysis?.text).toContain(
+      "Test result: threshold pace 5:30 /km",
+    );
+  });
+
   it("records a run at the target pace and TSS", () => {
     const target = plannedSessionTss(session({ title: "Easy run" }));
     const activity = buildSessionActivity({

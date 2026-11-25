@@ -43,6 +43,14 @@ const season: SeasonPlan = {
   startDate: "2026-10-21",
   endDate: "2027-04-01",
   rationale: "Build a strong aerobic base.",
+  goals: [
+    {
+      title: "Sub-4-hour marathon",
+      date: "2027-04-01",
+      priority: "A",
+      target: "Under 4:00",
+    },
+  ],
   blocks: [
     {
       name: "Base",
@@ -50,6 +58,15 @@ const season: SeasonPlan = {
       startDate: "2026-10-21",
       endDate: "2026-12-01",
       weekCount: 6,
+      subGoals: [
+        {
+          goalTitle: "Sub-4-hour marathon",
+          goalDate: "2027-04-01",
+          role: "build",
+          target: "Six consistent weeks of aerobic running",
+          byDate: "2026-11-30",
+        },
+      ],
     },
   ],
 };
@@ -87,6 +104,8 @@ describe("season plan prompt", () => {
     expect(system).toContain("season");
     expect(system).toContain('"season"');
     expect(system).toContain('"weekCount"');
+    expect(system).toContain('"goals"');
+    expect(system).toContain('"subGoals"');
     expect(system).toContain("rationale");
     expect(system).toContain('"dietProgress"');
     expect(system).toContain('"targetWeightKg"');
@@ -128,6 +147,7 @@ describe("initial block prompt", () => {
     expect(system).toContain("first block");
     expect(system).toContain("Keep the season unchanged");
     expect(system).toContain('"block"');
+    expect(system).toContain('"subGoals"');
     expect(system).toContain('"targetLoad"');
     expect(system).toContain("rationale");
     expect(system).toContain('"dietProgress"');
@@ -142,6 +162,8 @@ describe("initial block prompt", () => {
 
     expect(prompt).toContain("Today's date: 2026-10-21");
     expect(prompt).toContain("Goal: Sub-4-hour marathon");
+    expect(prompt).toContain("Goals:");
+    expect(prompt).toContain("Sub-goals:");
     expect(prompt).toContain("Base");
     expect(prompt).toContain("Create the first block.");
     expect(prompt).toContain(

@@ -2,6 +2,10 @@ import type { LlmProvider } from "./openrouter.js";
 import { completePlanJson } from "./planCompletion.js";
 import { PLAN_MAX_TOKENS } from "./planBudget.js";
 import {
+  withBlockGoalCoverage,
+  withSeasonGoalCoverage,
+} from "./planGoalSchemas.js";
+import {
   initialBlockUpdateSchema,
   seasonPlanUpdateSchema,
   type InitialBlockUpdate,
@@ -22,7 +26,7 @@ export async function generateSeasonPlan(
   input: SeasonPlanInput,
 ): Promise<SeasonPlanUpdate> {
   return completePlanJson(
-    seasonPlanUpdateSchema,
+    withSeasonGoalCoverage(seasonPlanUpdateSchema, input),
     provider,
     credentials,
     buildSeasonPlanMessages(input),
@@ -37,7 +41,7 @@ export async function generateInitialBlock(
   input: InitialBlockInput,
 ): Promise<InitialBlockUpdate> {
   return completePlanJson(
-    initialBlockUpdateSchema,
+    withBlockGoalCoverage(initialBlockUpdateSchema, input),
     provider,
     credentials,
     buildInitialBlockMessages(input),

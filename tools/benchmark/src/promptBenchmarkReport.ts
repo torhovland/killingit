@@ -481,8 +481,9 @@ export async function runPromptBenchmarkReportStage(): Promise<void> {
     steering prompt is the Sunday 2027-07-04 refresh from the full-season test:
     a compliant athlete has completed every session, says they all felt easy,
     but is still at about 247 W FTP and a 31 CTL with seven weeks to a 3:10
-    gravel race, and the coach must decide whether the goal is realistic and how
-    to steer the remaining block. Every prompt contains the athlete profile,
+    gravel race, and the coach must decide whether the goal is realistic, how to
+    steer the remaining block, and how to revise the structured goal ledger and
+    its sub-goals. Every prompt contains the athlete profile,
     recent activities and coach analyses, the current plan, the athlete's
     metrics, and the weather forecast. A model needed a retry when a response
     was not parseable or did not match its contract. ${retries} models needed

@@ -120,6 +120,39 @@ const ATHLETE_EVENT_RULES = `The athlete's dated goals and events are dates the 
 const GOAL_FEASIBILITY_RULES = `After you plan a season, a block, or a week, check it against the athlete's stated goals and the training they have actually completed. Is the plan on track? If it is not, say so plainly in the relevant goal, focus, or rationale, and say whether catching up is realistic. If the goal cannot realistically be reached from here, say that too and explain what is realistic. Never present a goal as certain when the training data does not support it.`;
 
 /**
+ * How the coach plans a season around every dated goal instead of only the next
+ * one. The season carries the goal list and every block carries the sub-goals
+ * that say what it does for each goal still ahead.
+ */
+const GOAL_LEDGER_RULES = `The athlete's dated goals and events may be spread across the season. Plan backwards from every one of them, not forwards from the next one.
+
+In "season.goals", list every dated race, goal or other dated target the athlete stated, in date order, with its title, date, target and priority. Use the athlete's own dated goals and events; never invent one. Set every priority to "A" unless the athlete says otherwise or the coaching situation clearly justifies a lower priority. All goals may be A.
+
+For each goal, decide what performance it needs, the minimum specific preparation it needs, and when that preparation must start, including the taper before it and the recovery after it. If the time from today to the goal is shorter than that minimum, start the general preparation earlier or say plainly in the relevant rationale that the goal is not realistic from here and what is realistic.
+
+Every block must account for every goal that is still ahead when the block starts. Add one or more "subGoals" for that goal: the role is "build" when the block develops the goal, "maintain" when it keeps the qualities the goal needs, and "accept-decline" when the block deliberately gives another goal priority and this goal will slip. A block may carry several sub-goals for one goal. A block with no goal still ahead carries an empty "subGoals" array.
+
+Even when every goal is A, you may focus on the next upcoming goal and accept a decline for a later one, provided the remaining time is enough to train for the later goal as well. Do not ignore a later goal until its own block: build the qualities it shares with the current goal now and keep the rest ticking over. Only the later goal's specific preparation and taper wait for its own block.
+
+Recovery and taper blocks still account for every goal still ahead, usually with "maintain" or "accept-decline" and a target that says what is protected or what is allowed to slip.
+
+Each "target" is your coaching judgement of a meaningful, measurable milestone for that block, not an arithmetic share of a season total and not an even weekly interpolation. Each "byDate" must fall inside the block. A block's "focus" and "rationale" must name the sub-goals the block is built around, so the ledger is part of the plan and not only a table.`;
+
+/**
+ * How a week turns its block's sub-goals into sessions. Shared by every prompt
+ * that returns or revises a week.
+ */
+const WEEK_BLOCK_GOAL_RULES = `A week is not a generic seven-day template. Its "focus" and "rationale" must name the block sub-goals the week advances or maintains, and every session must serve one of those sub-goals or be recovery that makes the next productive session possible. If a session cannot be tied to the block's sub-goals, replace it with a session that can or with rest. When the block's sub-goals change, the week must change with them.`;
+
+/**
+ * How the coach uses tests. A test is a normal productive workout, not a
+ * separate session type and not a fixed calendar ritual.
+ */
+const TESTING_RULES = `Tests are productive workouts, not a separate phase and not an extra session. Use one when it answers a question the plan depends on: a baseline early in a block, a retest before the next block sets its targets, a race rehearsal or a fuelling test before a goal. You decide whether and when a test is useful; do not force a fixed test schedule.
+
+A test is a normal workout whose title and description state the protocol, the target that would show progress, and what you will change if the result is better or worse. Embed the test in the hard stimulus of a productive session rather than adding it on top, for example a 20-minute FTP test inside an endurance ride or a race-pace block inside a long gravel ride. A maximal test replaces that session's hard work and is surrounded by easy days; never put one in a taper or race week.`;
+
+/**
  * How the coach reads the athlete's food log. Shared by every prompt that can
  * receive meals so a meal is never counted as training and the estimates are
  * never presented as exact measurements.
@@ -200,7 +233,9 @@ Use the date the statement refers to. For a number in the profile that names no 
 
 The stored history tells you what is already known; do not repeat a value for the same date.`,
   ATHLETE_EVENT_RULES,
+  GOAL_LEDGER_RULES,
   GOAL_FEASIBILITY_RULES,
+  TESTING_RULES,
   DAILY_HEALTH_RULES,
   DIET_RULES,
   DIET_PROGRESS_RULES,
@@ -470,6 +505,7 @@ export const PLAN_UPDATE_SHARED_RULES = (
 ): string =>
   promptSections(
     WEEK_OUTLINE_RULES,
+    WEEK_BLOCK_GOAL_RULES,
     ...levelRules,
     WEATHER_PLANNING_RULES,
     BIKE_WORKOUT_RULES,
@@ -538,12 +574,19 @@ export const WEEK_CONTRACT = `{
 /** The diet goal, its target, whether the athlete stated it, and the trend judgement. */
 export const DIET_CONTRACT = `{ "goal": "string", "goalProvided": false, "goalWeightKg": 0, "goalBodyFatPercent": 0, "goalDate": "YYYY-MM-DD", "goalMissReason": "string", "assessment": "string" }`;
 
+/** One dated goal in the season's goal ledger. */
+const SEASON_GOAL_CONTRACT = `{ "title": "string", "date": "YYYY-MM-DD", "priority": "A | B | C", "target": "string" }`;
+
+/** What one block does for a goal still ahead of it. */
+const BLOCK_SUB_GOAL_CONTRACT = `{ "goalTitle": "string", "goalDate": "YYYY-MM-DD", "role": "build | maintain | accept-decline", "target": "string", "byDate": "YYYY-MM-DD" }`;
+
 export const BLOCK_CONTRACT = `{
   "name": "string",
   "focus": "string",
   "rationale": "string",
   "startDate": "YYYY-MM-DD",
   "endDate": "YYYY-MM-DD",
+  "subGoals": [${BLOCK_SUB_GOAL_CONTRACT}],
   "dietProgress": ${DIET_PROGRESS_CONTRACT} | null,
   "weeks": [
     {
@@ -563,6 +606,7 @@ export const SEASON_CONTRACT = `{
   "rationale": "string",
   "startDate": "YYYY-MM-DD",
   "endDate": "YYYY-MM-DD",
+  "goals": [${SEASON_GOAL_CONTRACT}],
   "dietProgress": ${DIET_PROGRESS_CONTRACT} | null,
   "blocks": [
     {
@@ -571,6 +615,7 @@ export const SEASON_CONTRACT = `{
       "startDate": "YYYY-MM-DD",
       "endDate": "YYYY-MM-DD",
       "weekCount": 0,
+      "subGoals": [${BLOCK_SUB_GOAL_CONTRACT}],
       "dietProgress": ${DIET_PROGRESS_CONTRACT} | null
     }
   ]

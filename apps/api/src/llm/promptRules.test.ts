@@ -70,11 +70,35 @@ describe("shared prompt composition", () => {
         COACH_AMBITION_RULES,
         ATHLETE_INPUT_RULES,
         promptRuleLiteral("ATHLETE_EVENT_RULES"),
+        promptRuleLiteral("GOAL_LEDGER_RULES"),
+        promptRuleLiteral("TESTING_RULES"),
         DAILY_HEALTH_RULES,
         DIET_RULES,
         TEXT_FORMATTING_RULES,
       ]),
     ).toEqual([]);
+  });
+
+  it("plans from a structured goal ledger rather than the next goal only", () => {
+    const ledger = promptRuleLiteral("GOAL_LEDGER_RULES");
+    for (const fragment of [
+      '"season.goals"',
+      '"subGoals"',
+      '"build"',
+      '"maintain"',
+      '"accept-decline"',
+      "Even when every goal is A",
+      "not an arithmetic share",
+      "Recovery and taper blocks",
+    ]) {
+      expect(ledger).toContain(fragment);
+    }
+    expect(promptRuleLiteral("WEEK_BLOCK_GOAL_RULES")).toContain(
+      "block sub-goals",
+    );
+    expect(promptRuleLiteral("TESTING_RULES")).toContain(
+      "not a separate phase",
+    );
   });
 
   it("builds the completed-session rules in the order a prompt reads them", () => {
@@ -104,10 +128,11 @@ describe("shared prompt composition", () => {
     ).toEqual([]);
   });
 
-  it("builds the update tail from the seven shared rules in order", () => {
+  it("builds the update tail from the shared rules in order", () => {
     const tail = PLAN_UPDATE_SHARED_RULES();
     const order = [
       promptRuleLiteral("WEEK_OUTLINE_RULES"),
+      promptRuleLiteral("WEEK_BLOCK_GOAL_RULES"),
       promptRuleLiteral("WEATHER_PLANNING_RULES"),
       promptRuleLiteral("BIKE_WORKOUT_RULES"),
       DIET_PLANNING_PROMPT,

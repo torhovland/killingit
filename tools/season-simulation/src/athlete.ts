@@ -11,6 +11,10 @@ import type { AthleteProfile, Cadence, Capability, RaceGoal } from "./types.js";
 const MAX_SESSION_TSS = 250;
 const MIN_SESSION_TSS = 10;
 
+/** A title or description that prescribes a test rather than ordinary work. */
+const TEST_PATTERN =
+  /\b(?:test|testing|time trial|tt|field test|ftp test|threshold test|benchmark|race simulation|race rehearsal|rehearsal)\b/i;
+
 const SPORT_PATTERNS: ReadonlyArray<{ sport: string; pattern: RegExp }> = [
   {
     sport: "cycling",
@@ -41,6 +45,26 @@ function sportInText(text: string): string | null {
     }
   }
   return null;
+}
+
+/**
+ * Whether a workout prescribes a test. Tests are ordinary workouts, so the
+ * simulation recognises one from its title or description rather than a
+ * separate session type.
+ */
+function isTestSession(session: WeekSession): boolean {
+  return (
+    session.type === "workout" &&
+    (TEST_PATTERN.test(session.title) || TEST_PATTERN.test(session.description))
+  );
+}
+
+/** The hardest intensity a test of this length can hold. */
+function testIntensity(minutes: number): number {
+  if (minutes <= 60) return 1;
+  if (minutes <= 120) return 0.95;
+  if (minutes <= 180) return 0.88;
+  return 0.82;
 }
 
 /** The session's training stress: the coach's estimate, else an intensity rate. */
@@ -128,6 +152,12 @@ function heartRateFor(profile: AthleteProfile, intensity: number): number {
   return Math.round(profile.thresholdHeartRate * factor);
 }
 
+/** `m:ss /km` for the activity analysis and the run report. */
+export function formatPace(secondsPerKm: number): string {
+  const total = Math.round(secondsPerKm);
+  return `${String(Math.floor(total / 60))}:${String(total % 60).padStart(2, "0")} /km`;
+}
+
 function analysisText(parts: {
   title: string;
   minutes: number;
@@ -135,9 +165,12 @@ function analysisText(parts: {
   intensity: number;
   power: number | null;
   heartRate: number;
+  testResult?: string | undefined;
 }): string {
   const power = parts.power === null ? "" : `, NP ${String(parts.power)} W`;
-  return `Completed as prescribed: ${parts.title}. ${String(parts.minutes)} min ${parts.sport}, IF ${parts.intensity.toFixed(2)}${power}, avg HR ${String(parts.heartRate)}.`;
+  const result =
+    parts.testResult === undefined ? "" : ` Test result: ${parts.testResult}.`;
+  return `Completed as prescribed: ${parts.title}. ${String(parts.minutes)} min ${parts.sport}, IF ${parts.intensity.toFixed(2)}${power}, avg HR ${String(parts.heartRate)}.${result}`;
 }
 
 function activityBase(input: {
@@ -200,23 +233,31 @@ export function buildSessionActivity(
 ): AnalyzedActivity {
   const tss = plannedSessionTss(input.session);
   const minutes = Math.max(10, input.session.durationMinutes);
-  const intensity = intensityFromTss(tss, minutes);
+  const test = isTestSession(input.session);
+  const plannedIntensity = intensityFromTss(tss, minutes);
+  // A test measures the athlete's current level, so it is recorded at the
+  // hardest effort its duration supports rather than at the planned session's
+  // easy or moderate TSS.
+  const intensity = test
+    ? Math.min(1.05, Math.max(plannedIntensity, testIntensity(minutes)))
+    : plannedIntensity;
   const sport = inferSport(input.session);
   const heartRate = heartRateFor(input.profile, intensity);
 
   if (sport === "cycling") {
-    return cyclingActivity(input, intensity, heartRate);
+    return cyclingActivity(input, intensity, heartRate, test);
   }
   if (sport === "running") {
-    return runningActivity(input, intensity, heartRate);
+    return runningActivity(input, intensity, heartRate, test);
   }
-  return otherActivity(input, sport, intensity, heartRate);
+  return otherActivity(input, sport, intensity, heartRate, test);
 }
 
 function cyclingActivity(
   input: SessionActivityInput,
   intensity: number,
   heartRate: number,
+  test: boolean,
 ): AnalyzedActivity {
   const normalizedPower = Math.round(input.capability.ftpWatts * intensity);
   const averagePower = Math.round(normalizedPower * 0.95);
@@ -249,6 +290,9 @@ function cyclingActivity(
       intensity,
       power: normalizedPower,
       heartRate,
+      testResult: test
+        ? `FTP ${String(Math.round(input.capability.ftpWatts))} W`
+        : undefined,
     }),
   });
 }
@@ -257,6 +301,7 @@ function runningActivity(
   input: SessionActivityInput,
   intensity: number,
   heartRate: number,
+  test: boolean,
 ): AnalyzedActivity {
   const pace = input.capability.runThresholdSecPerKm / intensity;
   const movingTime = input.session.durationMinutes * 60;
@@ -282,6 +327,9 @@ function runningActivity(
       intensity,
       power: null,
       heartRate,
+      testResult: test
+        ? `threshold pace ${formatPace(input.capability.runThresholdSecPerKm)}`
+        : undefined,
     }),
   });
 }
@@ -291,6 +339,7 @@ function otherActivity(
   sport: string,
   intensity: number,
   heartRate: number,
+  test: boolean,
 ): AnalyzedActivity {
   const movingTime = input.session.durationMinutes * 60;
   const type =
@@ -323,6 +372,7 @@ function otherActivity(
       intensity,
       power: null,
       heartRate,
+      testResult: test ? "completed at the expected level" : undefined,
     }),
   });
 }
