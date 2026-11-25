@@ -197,11 +197,12 @@ easy. Its stored season carries the two 2027 goals in the structured goal
 ledger and the gravel block carries a modest sub-goal target, so the response
 must revise the ledger instead of silently keeping the timid target. The
 validator requires `goals` and `subGoals`; the judge rewards raising the target
-and accounts for any future goal rather than only the next one. The judge is given the harness's independent course model as ground
-truth, recognises that 3:10 needs about 281 W in a group, and rewards a candid
-read of the gap plus a materially more ambitious safe block rather than another
-timid week. It is the prompt that distinguishes a model which steers from one
-that merely repeats the existing plan.
+and accounts for any future goal rather than only the next one. The judge uses
+the athlete's own 3:20 at about 285 W as the honest anchor: 3:10 needs at least
+280 W, and the harness model's 281 W is a floor, not a comfortable target. It
+rewards a candid read of the gap plus a materially more ambitious safe block
+rather than another timid week. It is the prompt that distinguishes a model
+which steers from one that merely repeats the existing plan.
 
 Ability is the mean of all three judged prompt scores. Speed and cost remain the
 sum of the two core app prompts, so the extra ability call does not make a model

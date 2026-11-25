@@ -71,6 +71,8 @@ describe("shared prompt composition", () => {
         ATHLETE_INPUT_RULES,
         promptRuleLiteral("ATHLETE_EVENT_RULES"),
         promptRuleLiteral("GOAL_LEDGER_RULES"),
+        promptRuleLiteral("GOAL_DEMAND_RULES"),
+        promptRuleLiteral("LOAD_AUDIT_RULES"),
         promptRuleLiteral("TESTING_RULES"),
         DAILY_HEALTH_RULES,
         DIET_RULES,
@@ -92,6 +94,34 @@ describe("shared prompt composition", () => {
       "Recovery and taper blocks",
     ]) {
       expect(ledger).toContain(fragment);
+    }
+    const demand = promptRuleLiteral("GOAL_DEMAND_RULES");
+    for (const fragment of [
+      "power, pace or time",
+      "current estimated performance",
+      "the gap between them",
+      "previous 100 km gravel race",
+      "at least the power that produced 3:20",
+      "never set a build target below",
+      "use that threshold as the power anchor",
+      "do not refuse to estimate",
+      "at least 280 W",
+      "not replace it with an interim milestone",
+      'week-by-week "estimatedFtpWatts"',
+      '"build" sub-goal',
+    ]) {
+      expect(demand).toContain(fragment);
+    }
+    const loadAudit = promptRuleLiteral("LOAD_AUDIT_RULES");
+    for (const fragment of [
+      "planned session durations",
+      "hours the athlete says they can train",
+      "sessions' estimated TSS",
+      "target load is not a label",
+      "current CTL",
+      "felt easy",
+    ]) {
+      expect(loadAudit).toContain(fragment);
     }
     expect(promptRuleLiteral("WEEK_BLOCK_GOAL_RULES")).toContain(
       "block sub-goals",

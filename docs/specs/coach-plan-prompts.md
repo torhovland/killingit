@@ -5,8 +5,11 @@
 - **Updated:** 2026-11-25 — every plan prompt now plans from a structured goal
   ledger. The season carries `goals`, every block summary and detailed block
   carries `subGoals`, and the prompts require week planning to advance the
-  block's sub-goals. Tests remain ordinary productive workouts. See
-  `docs/specs/goal-ledger.md` and ADR 0064.
+  block's sub-goals. `GOAL_DEMAND_RULES` makes the coach derive the goal's
+  required performance from the input and state the gap; `LOAD_AUDIT_RULES`
+  reconciles planned hours and session TSS with the target load. Tests remain
+  ordinary productive workouts. See `docs/specs/goal-ledger.md`, ADR 0064 and
+  ADR 0065.
 - **Updated:** 2026-11-22 — the plan-update response contract now carries only
   the levels a revision changes. A week-only revision returns the week, a block
   revision returns the season, block, week and today, and a progress-only

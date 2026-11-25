@@ -23,7 +23,10 @@ and Day plan tabs, and give the coach the same list when it plans.
 2. A stored `athlete_events` list per account, replaced by each successful
    reading, newest first, so an event edited out of a comment disappears.
 3. The stored events are added to the plan prompts, so the coach plans around a
-   race, a taper, or a trip.
+   race, a taper, or a trip. A past race or goal is still shown, marked `past`,
+   because it explains the season's history and the load that follows it; a
+   past trip or appointment is not shown, because it is only a historical
+   constraint.
 4. `GET /api/calendar` returns each day's events and each Monday week's planned
    and completed time and TSS.
 5. `GET /api/coaching/plan` returns the stored events, and the Day and Week tabs

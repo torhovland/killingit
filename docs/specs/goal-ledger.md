@@ -38,20 +38,35 @@ the plan depends on.
 5. Sub-goals are defined by the coach from training science. They are not a
    mathematical interpolation of a season total or an even weekly spread.
 6. The shared prompt rules require the goal ledger, the backward planning from
-   each goal, the block sub-goal coverage, and week planning that names the block
-   sub-goals it advances. Every plan prompt gets the goal-ledger rules; the
-   weekly, daily and update prompts also get the week-to-block rule.
-7. Tests are ordinary productive workouts, not a first-class session type. The
+   each goal, the block sub-goal coverage, week planning that names the block
+   sub-goals it advances, a derived goal-demand estimate, and a load audit. Every
+   plan prompt gets the goal-ledger and goal-demand rules; the weekly, daily and
+   update prompts also get the week-to-block rule.
+7. **Goal demand.** The coach states the performance a goal needs in its own
+   units, the current estimate, the gap and the assumptions, using a prior
+   result on the same or a similar course as the anchor. A stated threshold from
+   the period of the prior result is enough to anchor it; the coach may not
+   refuse because a separate race power was not recorded. A `build` sub-goal
+   states the numeric goal-required target, not an interim milestone, and the
+   block's weekly `estimatedFtpWatts` must progress toward it.
+8. **Load audit.** The coach compares the week's planned hours with the stated
+   capacity, sums the sessions' TSS against the target load, states CTL and the
+   projected TSB, and treats "completed every session, felt easy" as evidence
+   that the stored load was too low. An 8-10 hour build week is normally about
+   350-500 TSS, not 300-340.
+9. Tests are ordinary productive workouts, not a first-class session type. The
    coach is encouraged to use them when necessary, but the prompt does not force
    a test at a fixed time. A test replaces the hard stimulus of a workout rather
    than adding another session.
-8. The goal-steering benchmark carries the structured ledger in its stored plan
-   and validates a response that keeps, revises or adds the required fields. The
-   judge rewards a revised block that accounts for the goals and penalises
-   ignoring a future goal.
-9. The season simulation treats a session that prescribes a test as a test: the
-   recorded activity is completed at the performance the athlete's model expects
-   on that date, and its analysis states the test result.
+10. The goal-steering benchmark carries the structured ledger in its stored plan
+    and validates a response that keeps, revises or adds the required fields.
+    The judge uses the athlete's prior 3:20 at about 285 W as the anchor: 3:10
+    needs at least 280 W, and the harness model's 281 W is a floor, not a
+    comfortable target. It rewards a revised block that accounts for the goals
+    and a build sub-goal at or above that floor.
+11. The season simulation treats a session that prescribes a test as a test: the
+    recorded activity is completed at the performance the athlete's model
+    expects on that date, and its analysis states the test result.
 
 ### Out of scope
 
@@ -102,7 +117,8 @@ normal repair turn.
 - each current or future block has a `subGoals` array;
 - every upcoming `race`, `goal` or `event` has a matching date in
   `season.goals`; trips remain constraints and are not goals;
-- every sub-goal references a goal in `season.goals` by title and date;
+- every sub-goal references a goal in `season.goals` by its date; the title is a
+  display label and may include the date;
 - every goal still ahead at a block's start is covered by at least one sub-goal
   in that block;
 - a sub-goal's `byDate` falls inside its block;
@@ -120,6 +136,13 @@ existed are not retrofitted and do not fail.
 - `GOAL_LEDGER_RULES` describes the goal list, priorities, backward planning,
   block coverage, recovery and taper accounting, and the rule that sub-goals are
   coach-defined rather than interpolated.
+- `GOAL_DEMAND_RULES` makes the coach derive the goal's required power, pace or
+  time from the input, anchor it to a prior comparable result, and state the
+  current gap. It requires a numeric build target and a weekly FTP/pace
+  progression toward it.
+- `LOAD_AUDIT_RULES` makes the coach reconcile planned hours with stated
+  capacity and session TSS with the week target load, state CTL/TSB, and treat
+  positive "felt easy" feedback as under-load.
 - `WEEK_BLOCK_GOAL_RULES` requires a week's focus and rationale to name the block
   sub-goals it advances and every session to serve one or recovery.
 - `TESTING_RULES` describes tests as productive workouts: use them when they
@@ -133,9 +156,11 @@ prompt, including the update prompts, so a refresh sees the stored ledger.
 
 The goal-steering fixture stores the two 2027 goals and the gravel block's
 sub-goals. The prompt therefore shows the ledger the coach must revise. The
-response validator requires the goal and sub-goal fields, and the judge rubric
-rewards raising the targets toward the at-risk goal, keeping a future goal
-accounted for, and adding a productive test when it helps. The full-season
+judge rubric uses the athlete's own prior 3:20 at about 285 W as the anchor:
+3:10 needs at least 280 W, and the harness model's 281 W is a floor, not a
+comfortable target. It rewards raising the build sub-goal to at least that floor,
+showing the weekly FTP progression, keeping a future goal accounted for, and
+adding a productive test when it helps. The full-season
 simulation detects a test in a session title or description and records that
 activity at the athlete's modelled FTP or threshold pace, with the test result in
 the analysis.
@@ -144,19 +169,27 @@ the analysis.
 
 1. A season answer without `goals`, or with a current or future block without
    `subGoals`, is rejected and repaired.
-2. A block answer without `subGoals`, or with a sub-goal that does not reference a
-   stored season goal, is rejected and repaired.
+2. A block answer without `subGoals`, or with a sub-goal whose date does not
+   reference a stored season goal, is rejected and repaired.
 3. Every block that starts before a goal date carries at least one sub-goal for
    that goal; recovery and taper blocks account for it explicitly.
 4. The prompt requires dated goals in date order, priorities, backward planning
    and block sub-goals built from coaching judgement.
 5. The weekly, daily and update prompts require the week focus to name the block
    sub-goals it advances.
-6. The goal-steering benchmark fixture and validator carry the structured fields,
-   and the judge rubric considers them.
-7. The season simulation records a test workout at the modelled current
-   performance and states the result in the activity analysis.
-8. Typecheck, lint, format, unused-export check and tests pass.
+6. The coach derives the goal-required performance from the input and states the
+   current gap; a stated threshold from the prior-result period is enough to
+   anchor it. A `build` sub-goal carries the numeric required target and the
+   weekly FTP estimate reaches it.
+7. The load audit reconciles planned hours and session TSS, and treats completed
+   easy sessions as evidence of under-load.
+8. A past race or goal remains in the prompt context, marked `past`; a past trip
+   does not.
+9. The goal-steering benchmark fixture and validator carry the structured fields,
+   and the judge rubric expects at least 280 W from the prior 285 W anchor.
+10. The season simulation records a test workout at the modelled current
+    performance and states the result in the activity analysis.
+11. Typecheck, lint, format, unused-export check and tests pass.
 
 ## Testing
 
