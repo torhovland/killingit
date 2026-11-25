@@ -64,6 +64,12 @@ day "<previous>" ends. Please regenerate the plan.`
   `The coach returned a gap between season blocks: "<previous>" ends on <date>
 and "<next>" starts on <date>, leaving <date> unplanned. Please regenerate
 the plan.`
+- `previous.endDate` is not a Sunday or `next.startDate` is not a Monday — the
+  boundary falls in the middle of a training week:
+  `The coach returned a season block boundary in the middle of a week:
+"<previous>" ends on <date> and "<next>" starts on <date>. A block must end
+on a Sunday and the next block must start on a Monday. Please regenerate the
+plan.`
 
 Blocks are compared in the order the response returns them; an unordered season
 therefore fails as a gap or overlap at the boundary where the order breaks.
@@ -92,7 +98,9 @@ stored plan untouched and the run is marked failed as today.
    and nothing is saved.
 3. A season refresh with a gap is rejected with the dates that are unplanned.
 4. A season refresh with an overlap is rejected with the shared date.
-5. Blocks that ended before today do not fail a write.
-6. Both prompts state the rule and neither keeps its own copy of it.
-7. `bun run typecheck`, `bun run lint`, `bun run format` and `bun run test`
+5. A boundary in the middle of a calendar week is rejected, so a block cannot
+   end on a Monday and leave the next block starting on a Tuesday.
+6. Blocks that ended before today do not fail a write.
+7. Both prompts state the rule and neither keeps its own copy of it.
+8. `bun run typecheck`, `bun run lint`, `bun run format` and `bun run test`
    pass.

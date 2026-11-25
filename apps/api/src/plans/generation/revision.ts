@@ -62,9 +62,13 @@ export async function advancePlan(
     includeTomorrow,
     keepToday: input.keepToday === true,
   });
+  const expectedSeasonBlockStart =
+    current.block.endDate < today
+      ? startOfWeek(today)
+      : current.block.startDate;
   const options: PlanUpdateOptions = {
     ...(flags.season || flags.blockInPlace
-      ? { expectedBlockStartDate: current.block.startDate }
+      ? { expectedBlockStartDate: expectedSeasonBlockStart }
       : flags.block
         ? { expectedBlockStartDate: nextBlockStartDate(current.block, today) }
         : {}),

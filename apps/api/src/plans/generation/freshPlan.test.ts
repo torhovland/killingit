@@ -27,10 +27,10 @@ describe("runPlanGeneration", () => {
             "Hello, I am your coach and I look forward to working with you.",
         },
       }),
-      block: JSON.stringify({ block: makeBlock(today, "2026-12-31") }),
+      block: JSON.stringify({ block: makeBlock(today, "2026-12-27") }),
       weekly: JSON.stringify({
         week: makeWeek(startOfWeek(today)),
-        block: makeBlock(today, "2026-12-31"),
+        block: makeBlock(today, "2026-12-27"),
       }),
       daily: JSON.stringify({
         today: makeDay(today),

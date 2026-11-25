@@ -135,5 +135,14 @@ function assertSeasonBlocksContiguous(
         `The coach returned a gap between season blocks: "${previous.name}" ends on ${previous.endDate} and "${next.name}" starts on ${next.startDate}, leaving ${unplanned} unplanned.`,
       );
     }
+    const previousSunday = addDays(startOfWeek(previous.endDate), 6);
+    if (
+      previous.endDate !== previousSunday ||
+      next.startDate !== startOfWeek(next.startDate)
+    ) {
+      throw new PlanValidationError(
+        `The coach returned a season block boundary in the middle of a week: "${previous.name}" ends on ${previous.endDate} and "${next.name}" starts on ${next.startDate}. A block must end on a Sunday and the next block must start on a Monday.`,
+      );
+    }
   }
 }

@@ -758,7 +758,7 @@ describe("requestPlanUpdate", () => {
     const provider = new FakeProvider({
       planUpdate: makeUpdate(today, {
         season: makeRefreshedSeason(today),
-        block: makeBlock(today, "2026-12-31"),
+        block: makeBlock(today, "2026-12-27"),
         week: makeWeek("2026-10-19"),
         today: makeDay(today),
       }),

@@ -28,7 +28,7 @@ describe("runPlanGeneration", () => {
     const provider = new FakeProvider({
       planUpdate: makeUpdate(today, {
         season: makeRefreshedSeason("2026-11-01"),
-        block: makeBlock("2026-11-01", "2026-12-31"),
+        block: makeBlock("2026-11-01", "2026-12-27"),
         week: makeWeek(startOfWeek(today)),
         today: makeDay(today),
       }),
@@ -65,7 +65,7 @@ describe("runPlanGeneration", () => {
     const provider = new FakeProvider({
       planUpdate: makeUpdate(today, {
         season: makeRefreshedSeason("2026-11-01"),
-        block: makeBlock("2026-11-01", "2026-12-31"),
+        block: makeBlock("2026-11-01", "2026-12-27"),
         week: makeWeek(startOfWeek(today)),
         today: makeDay(today),
       }),
@@ -112,7 +112,7 @@ describe("runPlanGeneration", () => {
     const provider = new FakeProvider({
       planUpdate: makeUpdate(today, {
         season: makeRefreshedSeason("2026-11-01"),
-        block: makeBlock("2026-11-01", "2026-12-31"),
+        block: makeBlock("2026-11-01", "2026-12-27"),
         week: makeWeek(startOfWeek(today)),
         today: makeDay(today),
       }),
@@ -157,7 +157,7 @@ describe("runPlanGeneration", () => {
     const provider = new FakeProvider({
       planUpdate: makeUpdate(today, {
         season: makeRefreshedSeason("2026-11-01"),
-        block: makeBlock("2026-11-01", "2026-12-31"),
+        block: makeBlock("2026-11-01", "2026-12-27"),
         week: makeWeek(startOfWeek(today)),
         today: makeDay(today),
       }),
@@ -186,7 +186,7 @@ describe("runPlanGeneration", () => {
     const provider = new FakeProvider({
       planUpdate: makeUpdate(today, {
         season: makeRefreshedSeason("2026-11-01"),
-        block: makeBlock("2026-11-01", "2026-12-31"),
+        block: makeBlock("2026-11-01", "2026-12-27"),
         week: makeWeek(startOfWeek(today)),
         today: makeDay(today),
       }),
@@ -228,7 +228,7 @@ describe("runPlanGeneration", () => {
     const provider = new FakeProvider({
       planUpdate: makeUpdate(today, {
         season: makeRefreshedSeason("2026-11-01"),
-        block: makeBlock("2026-11-01", "2026-12-31"),
+        block: makeBlock("2026-11-01", "2026-12-27"),
         week: makeWeek(startOfWeek(today)),
         today: makeDay(today),
       }),
@@ -256,7 +256,7 @@ describe("runPlanGeneration", () => {
     const provider = new FakeProvider({
       planUpdate: makeUpdate(today, {
         season: makeRefreshedSeason(today),
-        block: makeBlock(today, "2026-12-31"),
+        block: makeBlock(today, "2026-12-27"),
         week: makeWeek(startOfWeek(today)),
         today: makeDay(today),
       }),
@@ -295,7 +295,7 @@ describe("runPlanGeneration", () => {
     };
     const provider = new FakeProvider({
       planUpdate: makeUpdate(today, {
-        block: makeBlock("2026-11-16", "2026-12-31"),
+        block: makeBlock("2026-11-16", "2026-12-27"),
         week: makeWeek(startOfWeek(today)),
         today: makeDay(today),
       }),
@@ -371,7 +371,7 @@ describe("runPlanGeneration", () => {
     const provider = new FakeProvider({
       planUpdate: makeUpdate(today, {
         season: makeGappedRefreshedSeason("2026-11-01"),
-        block: makeBlock("2026-11-01", "2026-12-31"),
+        block: makeBlock("2026-11-01", "2026-12-27"),
         week: makeWeek(startOfWeek(today)),
         today: makeDay(today),
       }),
@@ -397,7 +397,7 @@ describe("runPlanGeneration", () => {
     }
 
     expect((failure as Error).message).toBe(
-      'The coach returned a gap between season blocks: "Rebuild" ends on 2026-12-31 and "Peak" starts on 2027-01-02, leaving 2027-01-01 unplanned. Please regenerate the plan.',
+      'The coach returned a gap between season blocks: "Rebuild" ends on 2026-12-27 and "Peak" starts on 2027-01-04, leaving 2026-12-28 unplanned. Please regenerate the plan.',
     );
     expect(generations.status.status).toBe("error");
     expect(plans.saved).toBe(existing);
@@ -415,12 +415,12 @@ describe("runPlanGeneration", () => {
             {
               ...refreshed.blocks[0]!,
               name: "Rebuild",
-              endDate: "2026-12-31",
+              endDate: "2026-12-27",
             },
-            { ...refreshed.blocks[1]!, name: "Peak", startDate: "2026-12-31" },
+            { ...refreshed.blocks[1]!, name: "Peak", startDate: "2026-12-27" },
           ],
         },
-        block: makeBlock("2026-11-01", "2026-12-31"),
+        block: makeBlock("2026-11-01", "2026-12-27"),
         week: makeWeek(startOfWeek(today)),
         today: makeDay(today),
       }),
@@ -446,7 +446,7 @@ describe("runPlanGeneration", () => {
     }
 
     expect((failure as Error).message).toBe(
-      'The coach returned overlapping season blocks: "Peak" starts on 2026-12-31, the day "Rebuild" ends. Please regenerate the plan.',
+      'The coach returned overlapping season blocks: "Peak" starts on 2026-12-27, the day "Rebuild" ends. Please regenerate the plan.',
     );
     expect(plans.saved).toBe(existing);
   });

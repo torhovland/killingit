@@ -58,4 +58,58 @@ describe("goal ledger validation", () => {
       assertPlanValid({ ...plan, block }, PLAN_TODAY, false),
     ).toThrow('must carry "subGoals"');
   });
+
+  it("rejects a season boundary that does not fall between calendar weeks", () => {
+    const plan = makePlan();
+    const season = {
+      ...plan.season,
+      blocks: [
+        {
+          name: "Base",
+          focus: "Aerobic",
+          startDate: plan.season.startDate,
+          endDate: "2026-12-07",
+          weekCount: 7,
+        },
+        {
+          name: "Build",
+          focus: "Threshold",
+          startDate: "2026-12-08",
+          endDate: plan.season.endDate,
+          weekCount: 17,
+        },
+      ],
+    };
+
+    expect(() =>
+      assertPlanValid({ ...plan, season }, PLAN_TODAY, false),
+    ).toThrow("boundary in the middle of a week");
+  });
+
+  it("accepts a season boundary from Sunday to Monday", () => {
+    const plan = makePlan();
+    const season = {
+      ...plan.season,
+      blocks: [
+        {
+          name: "Base",
+          focus: "Aerobic",
+          startDate: plan.season.startDate,
+          endDate: "2026-12-06",
+          weekCount: 7,
+        },
+        {
+          name: "Build",
+          focus: "Threshold",
+          startDate: "2026-12-07",
+          endDate: plan.season.endDate,
+          weekCount: 17,
+        },
+      ],
+    };
+
+    expect(() =>
+      assertPlanValid({ ...plan, season }, PLAN_TODAY, false),
+    ).not.toThrow();
+  });
 });
