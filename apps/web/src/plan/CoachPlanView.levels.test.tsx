@@ -56,14 +56,20 @@ describe("CoachPlanView levels", () => {
     );
     expect(season).toContain('data-testid="season-goals"');
     expect(season).toContain("Season goals");
-    expect(season).toContain("Spring 2027 (A)");
-    expect(season).toContain("Sub-4-hour marathon: Under 4:00");
+    expect(season).toContain(
+      `Spring 2027 (A)</span>${BULLET}Sub-4-hour marathon: Under 4:00`,
+    );
     expect(season).toContain('data-testid="season-block-goals"');
     expect(block).toContain('data-testid="block-goals"');
     expect(block).toContain("Block goals");
-    expect(block).toContain("Six consistent weeks of aerobic running.");
-    expect(block).toContain("Due Mon, Nov 30 · Goal: Sub-4-hour marathon");
-    expect(block).toContain("(Spring 2027)");
+    expect(block).toContain(
+      `Build</span>${BULLET}Sub-4-hour marathon (Spring 2027): Six consistent weeks of aerobic running.`,
+    );
+    expect(season).toContain(
+      `Build</span>${BULLET}Sub-4-hour marathon (Spring 2027): Six consistent weeks of aerobic running.`,
+    );
+    expect(block).not.toContain("Due Mon, Nov 30");
+    expect(season).not.toContain("Due Mon, Nov 30");
   });
 
   it("shows the coach's introduction on the Season tab", () => {

@@ -165,10 +165,13 @@ existed are not retrofitted and do not fail.
 
 The formatters render the season goal ledger and a block's sub-goals into every
 prompt, including the update prompts, so a refresh sees the stored ledger. A
-sub-goal target does not repeat the block's `byDate` or the goal date; the app
-appends those fields. The Block goals list shows `dateText` for a month-level
-goal, so a goal with anchor 2027-04-16 and `dateText` "early April 2027" reads
-"early April 2027", not an exact anchor day.
+sub-goal target does not repeat the goal date; the app shows it alongside the
+goal title. The block-end `byDate` is not displayed because it is always the end
+of the block. The Block goals list shows `dateText` for a month-level goal, so a
+goal with anchor 2027-04-16 and `dateText` "early April 2027" reads
+"early April 2027", not an exact anchor day. The Season goals and Block goals
+lists share one style: a bold leading label (the goal date and priority, or the
+block role), a bullet, then the goal title and target.
 
 ## Benchmark and simulation
 
@@ -196,8 +199,9 @@ the analysis.
    included with `dateText` and a middle-day planning anchor.
 5. The season `goal` headline summarises the season's goals and shape; it need
    not list every goal when there are many, but it must not imply a single-goal
-   season. A block sub-goal target does not repeat its byDate or goal date; the
-   app appends them, and a month-level goal shows `dateText`.
+   season. A block sub-goal target does not repeat its goal date; the app shows
+   the goal date, and a month-level goal shows `dateText`. The block-end
+   `byDate` is not displayed.
 6. The weekly, daily and update prompts require the week focus to name the block
    sub-goals it advances.
 7. The coach derives the goal-required performance from the input and states the
