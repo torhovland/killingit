@@ -20,18 +20,23 @@ not like a report attached to the plan.
 ### In scope
 
 1. A `CoachQuote` primitive in `apps/web/src/components/` that renders a
-   `<figure>` with the coach avatar and a `<blockquote>` containing the
-   formatted rationale. It replaces the rationale heading in the season, block,
-   week and day plan sections.
-2. A `CoachAvatar` primitive that draws the coach as a small inline SVG in the
-   brand palette: a head wearing a slightly rotated cap. It is decorative and
-   hidden from assistive technology, because the quote itself carries the
-   content.
+   `<figure>` as a three-column grid: a decorative lime quote mark, a
+   `<blockquote>` containing the formatted rationale, and the coach portrait.
+   The grid is `30px 1fr 56px` with an `18px` gap at normal widths and drops to
+   `22px 1fr 44px` with a `12px` gap below `520px`. It replaces the rationale
+   heading in the season, block, week and day plan sections.
+2. A `CoachAvatar` primitive that draws the coach as a detailed inline SVG
+   portrait in the brand palette: a head and shoulders with a beard, sweater
+   and a slightly rotated cap. The portrait is labelled "Your coach", so the
+   illustration attributes the quote; the decorative quote mark is hidden from
+   assistive technology.
 3. A shared spoken register in `apps/api/src/llm/promptRules.ts`. Both
    `SPOKEN_ANSWER_RULES` and the new `SPOKEN_RATIONALE_RULES` compose the same
    register fragment, and `RATIONALE_RULES` adds the rationale-specific
-   instructions. `PLAN_PROMPT_RULES` composes `RATIONALE_RULES`, so every plan
-   prompt asks for spoken rationales at every level.
+   instructions, including first-person examples such as "I'm keeping today
+   easy because you're still carrying Sunday's long ride". `PLAN_PROMPT_RULES`
+   composes `RATIONALE_RULES` as its final section, so every plan prompt asks
+   for spoken rationales at every level and closes on that instruction.
 4. The day plan's optional-session box ("Why this session matters") keeps its
    current layout and badge. It is a decision aid, not a second rationale.
 
@@ -47,9 +52,10 @@ not like a report attached to the plan.
 
 ## Acceptance criteria
 
-1. `CoachQuote` renders a real `<blockquote>` and the coach avatar, keeps the
-   caller's test id and optional layout class, and formats paragraphs and lists
-   through `FormattedText`.
+1. `CoachQuote` renders a real `<blockquote>` between the quote mark and the
+   coach portrait, keeps the caller's test id and optional layout class, uses
+   the responsive quote grid, and formats paragraphs and lists through
+   `FormattedText`.
 2. Season, block, week and today/tomorrow day rationales render through
    `CoachQuote`; no plan section shows a "Coach's rationale" heading.
 3. The day's optional-session box is unchanged.
@@ -69,14 +75,16 @@ change.
 
 ## Technical approach
 
-- `apps/web/src/components/CoachAvatar.tsx` draws the avatar inline with the
-  palette utilities (`fill-primary`, `fill-accent`, `fill-foreground`,
-  `fill-background`), a `useId()`-scoped clip path and `aria-hidden="true"`. No
-  image asset or hard-coded colour is added.
-- `apps/web/src/components/CoachQuote.tsx` owns the quote layout: the avatar
-  beside a left-accented `<blockquote>`, with a visually hidden `<figcaption>`
-  naming the coach. It reuses `FormattedText`, so lists and paragraphs render as
-  they do elsewhere.
+- `apps/web/src/components/CoachAvatar.tsx` draws the portrait inline with a
+  `useId()`-scoped gradient and clip path, so several portraits can share a
+  page. The background, sweater, cap and outer ring use palette variables; the
+  skin, hair, beard and cap-shading tones are illustration colours kept with
+  the artwork. The SVG is labelled "Your coach".
+- `apps/web/src/components/CoachQuote.tsx` owns the quote layout: the quote
+  mark, the `<blockquote>` and the portrait in one responsive grid, with the
+  inset surface, steel border, quote-mark glow and avatar ring from the
+  reference design. It reuses `FormattedText`, so lists and paragraphs render
+  as they do elsewhere.
 - `SeasonSection`, `BlockSection`, `WeekSection` and `DayCard` replace their
   rationale block with `CoachQuote`, keeping the existing test ids
   (`season-rationale`, `block-rationale`, `week-rationale` and
@@ -84,13 +92,15 @@ change.
 - `promptRules.ts` extracts the spoken register into one non-exported fragment.
   `SPOKEN_ANSWER_RULES` and `SPOKEN_RATIONALE_RULES` both compose it, and
   `RATIONALE_RULES` composes the rationale paragraph with
-  `SPOKEN_RATIONALE_RULES`. `PLAN_PROMPT_RULES` includes `RATIONALE_RULES`.
+  `SPOKEN_RATIONALE_RULES`. `PLAN_PROMPT_RULES` puts `RATIONALE_RULES` last, so
+  the shared plan rules end on the spoken rationale instruction rather than
+  burying it among the analytical rules.
 
 ## Testing
 
-- `apps/web/src/components/CoachQuote.test.tsx` asserts the figure, avatar,
-  blockquote, formatted lists, test id and caller class, and that no rationale
-  heading is emitted.
+- `apps/web/src/components/CoachQuote.test.tsx` asserts the figure, quote mark,
+  labelled portrait, blockquote, formatted lists, responsive grid, test id and
+  caller class, and that no rationale heading is emitted.
 - `CoachPlanView.levels.test.tsx` asserts the week, block and season rationales
   render inside a blockquote, and `CoachPlanView.test.tsx` keeps covering the
   day rationale.

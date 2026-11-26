@@ -78,10 +78,11 @@ export const SPOKEN_ANSWER_RULES = promptSections(
 
 /**
  * How the coach writes a plan rationale. It is the same spoken register as an
- * answer, so the quote reads the way the coach talks to the athlete.
+ * answer, with rationale-specific plain-speech examples so the rationale does
+ * not drift back into a written report.
  */
 const SPOKEN_RATIONALE_RULES = promptSections(
-  `Write every "rationale" field the way you'd say it to the athlete out loud, like a short spoken note and not a written report.`,
+  `Write every "rationale" field the way you'd say it to the athlete out loud, like a short voice note and not a report. Talk to them directly, and use the first person for your own decisions. Say "I'm keeping today easy because you're still carrying Sunday's long ride", not "Today's session is kept easy in order to support recovery from Sunday's long ride". The training-science reason still has to be there, but it should sound like you, not like a plan document. Read each rationale back before you return it: if it sounds like an email or a report, say it more simply.`,
   SPOKEN_REGISTER_RULES,
 );
 
@@ -297,7 +298,6 @@ You receive the athlete's profile, recent activities with their coach analyses a
 Respect the athlete's available time and constraints. The weekly note is a hard constraint: if it says the athlete cannot train on a specific day, move or cancel the session on that day. If a recorded activity, including a manually recorded one, indicates significant fatigue or extra load, weigh that against the rest of the picture and adjust the upcoming sessions when the athlete cannot absorb the planned load.
 
 When an important detail is missing, make a conservative assumption and state it briefly in the relevant focus or description.`,
-  RATIONALE_RULES,
   `When the profile, a weekly note, an activity comment, or another part of the input states the athlete's body weight or body-fat percentage, report it in "bodyMetrics" as { "date": "YYYY-MM-DD", "weightKg": number, "bodyFatPercent": number }.
 
 Use the date the statement refers to. For a number in the profile that names no date, use the date the profile was last saved; for anything added more recently, use today's date. Set a value the input does not give to null, and return an empty "bodyMetrics" array when the input says nothing about either number.
@@ -313,6 +313,8 @@ The stored history tells you what is already known; do not repeat a value for th
   DIET_RULES,
   DIET_PROGRESS_RULES,
   TEXT_FORMATTING_RULES,
+  // Last, so the spoken rationale instruction closes the shared plan rules.
+  RATIONALE_RULES,
 );
 
 /**

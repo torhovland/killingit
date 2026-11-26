@@ -92,10 +92,16 @@ describe("shared prompt composition", () => {
     expect(PLAN_PROMPT_RULES).toContain(
       'Write every "rationale" field the way you\'d say it',
     );
+    expect(PLAN_PROMPT_RULES).toContain(
+      "Say \"I'm keeping today easy because you're still carrying",
+    );
+    expect(PLAN_PROMPT_RULES).toContain("first person");
     expect(register).toContain("everyday words, contractions, short sentences");
     expect(register).toContain("No report voice");
     // The rationale rule still describes the plan as it stands.
     expect(PLAN_PROMPT_RULES).toContain('"we adjusted"');
+    // The spoken rule closes the shared plan rules instead of being buried.
+    expect(PLAN_PROMPT_RULES.trimEnd().endsWith(register)).toBe(true);
   });
 
   it("plans from a structured goal ledger rather than the next goal only", () => {
