@@ -13,10 +13,12 @@ import {
 } from "./coachReplyPrompt.js";
 import type { PlanContextInput } from "./planContext.js";
 import {
+  ANSWER_VARIETY_RULES,
   ATHLETE_INPUT_RULES,
   COACH_AMBITION_RULES,
   GLOBAL_PROMPT_RULES,
   REPLY_PLAN_CHANGE_RULES,
+  SPOKEN_ANSWER_RULES,
   TEXT_FORMATTING_RULES,
 } from "./promptRules.js";
 
@@ -143,6 +145,8 @@ describe("buildCoachReplyMessages", () => {
       "It is not stored and does not change the plan",
     );
     expect(messages[0]?.content).toContain("This is a conversation only");
+    expect(messages[0]?.content).toContain(SPOKEN_ANSWER_RULES);
+    expect(messages[0]?.content).toContain(ANSWER_VARIETY_RULES);
   });
 
   it("uses a brief plain-text reply system prompt", () => {
@@ -158,6 +162,8 @@ describe("buildCoachReplyMessages", () => {
 
     expect(messages[0]?.role).toBe("system");
     expect(messages[0]?.content).toContain("Reply briefly in 1-2 sentences");
+    expect(messages[0]?.content).toContain(SPOKEN_ANSWER_RULES);
+    expect(messages[0]?.content).toContain(ANSWER_VARIETY_RULES);
     expect(messages[0]?.content).toContain(TEXT_FORMATTING_RULES);
     expect(messages[0]?.content).toContain(GLOBAL_PROMPT_RULES);
     expect(messages[0]?.content).toContain(COACH_AMBITION_RULES);

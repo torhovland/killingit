@@ -2,7 +2,8 @@
 
 - **Status:** Accepted (implemented)
 - **Date:** 2026-11-08
-- **Related:** `docs/specs/coach-plan-prompts.md`,
+- **Related:** `docs/specs/coach-answer-voice.md`,
+  `docs/specs/coach-plan-prompts.md`,
   `docs/specs/coach-judgement.md`,
   `docs/specs/coach-feedback-and-program-review.md`,
   `docs/specs/coach-praise.md`,

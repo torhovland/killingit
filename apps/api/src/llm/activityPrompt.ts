@@ -43,6 +43,7 @@ import {
   ACTIVITY_PRAISE_RULES,
   ACTIVITY_TYPE_RULE,
   ACTIVITY_WEEK_MATCH_RULES,
+  ANSWER_VARIETY_RULES,
   COACH_ANALYSIS_RESPONSE_RULES,
   DAILY_HEALTH_RULES,
   DIET_RULES,
@@ -50,6 +51,7 @@ import {
   GLOBAL_PROMPT_RULES,
   type LlmMessage,
   promptSections,
+  SPOKEN_ANSWER_RULES,
   systemUserMessages,
   LAP_STRUCTURE_RULES,
   rollExtraPraise,
@@ -66,7 +68,7 @@ const MAX_PROMPT_SAMPLES = 90;
  * invalidate a cached analysis: only a newer athlete comment makes an analysis
  * stale, so a prompt edit or a model change does not re-bill the athlete.
  */
-export const ANALYSIS_PROMPT_VERSION = 20;
+export const ANALYSIS_PROMPT_VERSION = 21;
 
 /**
  * The athlete's current week, used to match an activity to its planned session
@@ -107,6 +109,8 @@ const ANALYSIS_SYSTEM_PROMPT = promptSections(
   ACTIVITY_WEEK_MATCH_RULES,
   DURATION_TOLERANCE_RULES,
   "Be brief and to the point: use 2-3 sentences for the assessment, cite only the most useful numbers, and finish with one actionable recommendation for the next session. Use a short bullet list when the session has several points worth noting. The recommendation must follow from a real improvement: when the session went to plan, build on it instead of inventing a correction. Do not add a separate plan-fit section.",
+  SPOKEN_ANSWER_RULES,
+  ANSWER_VARIETY_RULES,
   ACTIVITY_PRAISE_RULES,
   STRENGTH_SET_RULES,
   LAP_STRUCTURE_RULES,
