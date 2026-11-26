@@ -2,6 +2,10 @@
 
 - **Status:** Accepted (implemented)
 - **Date:** 2026-10-21
+- **Updated:** 2026-11-26 — every plan prompt now composes `RATIONALE_RULES`,
+  which asks for the rationale in the coach's spoken register through
+  `SPOKEN_RATIONALE_RULES`; other plan fields stay written text. The plan
+  temperature is unchanged. See `docs/specs/coach-rationale-quotes.md`.
 - **Updated:** 2026-11-25 — every plan prompt now plans from a structured goal
   ledger. The season carries `goals`, every block summary and detailed block
   carries `subGoals`, and the prompts require week planning to advance the
@@ -243,6 +247,9 @@ and returns `LlmProvider` chat messages.
   training-load, body-metric, session-purpose and enum rules. The initial
   season and block prompts also ask for a rationale and the training-load
   estimates, so a plan looks the same whichever completion built it.
+  `RATIONALE_RULES` composes `SPOKEN_RATIONALE_RULES`, so every rationale reads
+  like the coach talking while the rest of the plan stays written text; see
+  `docs/specs/coach-rationale-quotes.md`.
   `formatWeekPlan` and `formatDayPlan` include each supplied day's projected
   `ATL`, `CTL`, `TSB` and form label, and `formatPlanContext` includes today's
   current form, so the coach can keep the week inside the Productive band. See

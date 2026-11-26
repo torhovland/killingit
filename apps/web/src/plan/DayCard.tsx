@@ -16,6 +16,7 @@ import { WeatherSummary } from "../WeatherSummary";
 import { Badge } from "../components/Badge";
 import { Button } from "../components/Button";
 import { Card } from "../components/Card";
+import { CoachQuote } from "../components/CoachQuote";
 import { StatusBadge } from "../components/StatusBadge";
 import { formatPlanDate } from "./formatPlanDate";
 import { RefreshingOverlay, ThresholdsLine } from "./sections";
@@ -185,14 +186,7 @@ function DayAlternatives({ day }: { day: DayPlan }) {
 function DayRationale({ day, testId }: { day: DayPlan; testId: string }) {
   return (
     <>
-      <div className="flex flex-col gap-1 text-base">
-        <p className="font-medium">Coach's rationale</p>
-        <FormattedText
-          text={day.rationale}
-          className="text-muted-foreground"
-          testId={`${testId}-rationale`}
-        />
-      </div>
+      <CoachQuote text={day.rationale} testId={`${testId}-rationale`} />
       {day.type === "workout" && day.optionalRationale && (
         <div
           className="rounded border bg-muted p-3 text-base"

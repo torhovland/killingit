@@ -2,6 +2,7 @@ import type { SeasonPlan, ThresholdSummary } from "@killingit/shared";
 import { Bullet } from "../Bullet";
 import { FormattedText } from "../FormattedText";
 import { Card } from "../components/Card";
+import { CoachQuote } from "../components/CoachQuote";
 import { formatPlanDate } from "./formatPlanDate";
 import {
   DietProgressLine,
@@ -58,14 +59,11 @@ export function SeasonSection({
           <FormattedText text={season.introduction} />
         </div>
       )}
-      <div className="mt-3 flex flex-col gap-1 text-base">
-        <p className="font-medium">Coach's rationale</p>
-        <FormattedText
-          text={season.rationale}
-          className="text-muted-foreground"
-          testId="season-rationale"
-        />
-      </div>
+      <CoachQuote
+        text={season.rationale}
+        testId="season-rationale"
+        className="mt-3"
+      />
       <PlanList>
         {season.blocks.map((block, index) => (
           <PlanListItem key={`${block.name}-${block.startDate}`}>

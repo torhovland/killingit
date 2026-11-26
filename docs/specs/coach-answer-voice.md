@@ -47,8 +47,11 @@ time rather than read the same stock reply with the details swapped.
 ### Out of scope
 
 - Changing the coach personality itself, or giving the coach a named persona.
-- Making plan rationales, descriptions or JSON fields spoken. They remain
-  written plan text and keep the lower plan temperature.
+- Making plan descriptions, focus or JSON fields spoken. They remain written
+  plan text and keep the lower plan temperature. Plan rationales are the one
+  exception: they compose the same spoken register through
+  `SPOKEN_RATIONALE_RULES`, with the plan temperature unchanged. See
+  `docs/specs/coach-rationale-quotes.md`.
 - Randomising the coach's judgement, the plan-change scope, or the coaching
   advice. Only the language varies.
 
