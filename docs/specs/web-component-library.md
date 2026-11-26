@@ -68,6 +68,14 @@ The primitives live in `apps/web/src/components/`:
   the reply, formatted through `FormattedText`. The calendar dialog, the
   activity card and the period review card all show a stored reply through it,
   so the label and spacing cannot drift between them.
+- `CoachAvatar` — the coach's illustrated avatar: a decorative inline SVG head
+  wearing a slightly rotated cap, drawn with the palette utilities and hidden
+  from assistive technology. No image asset or hard-coded colour is used.
+- `CoachQuote` — one plan rationale as a spoken quote: the avatar beside a
+  left-accented `<blockquote>`, with a visually hidden `<figcaption>` naming the
+  coach and the text formatted through `FormattedText`. The season, block, week
+  and day sections render their rationale through it instead of a "Coach's
+  rationale" heading; see `docs/specs/coach-rationale-quotes.md`.
 - `cn` — `clsx` plus `tailwind-merge`, so a caller's `className` overrides a
   primitive's default instead of duplicating it.
 

@@ -40,12 +40,15 @@ describe("CoachPlanView levels", () => {
     );
     expect(week).toContain(`This week${BULLET}Aerobic base`);
     expect(week).toContain("Keep the week easy and consistent.");
+    expect(week).toContain("<blockquote");
+    expect(week).not.toContain("Coach's rationale");
 
     const block = renderToStaticMarkup(
       <CoachPlanView pending={noPending} plan={plan} defaultTab="block" />,
     );
     expect(block).toContain(`Current block${BULLET}Base`);
     expect(block).toContain("Establish consistent aerobic volume.");
+    expect(block).toContain("<blockquote");
 
     const season = renderToStaticMarkup(
       <CoachPlanView pending={noPending} plan={plan} defaultTab="season" />,
@@ -54,6 +57,7 @@ describe("CoachPlanView levels", () => {
     expect(season).toContain(
       "Build a strong aerobic base before marathon-specific work.",
     );
+    expect(season).toContain("<blockquote");
     expect(season).toContain('data-testid="season-goals"');
     expect(season).toContain("Season goals");
     expect(season).toContain(

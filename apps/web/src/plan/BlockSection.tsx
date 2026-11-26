@@ -6,6 +6,7 @@ import type {
 import { Bullet } from "../Bullet";
 import { FormattedText } from "../FormattedText";
 import { Card } from "../components/Card";
+import { CoachQuote } from "../components/CoachQuote";
 import { formatPlanDate } from "./formatPlanDate";
 import {
   DietProgressLine,
@@ -87,14 +88,11 @@ export function BlockSection({
             testId="block-diet-progress"
           />
         )}
-        <div className="mt-3 flex flex-col gap-1 text-base">
-          <p className="font-medium">Coach's rationale</p>
-          <FormattedText
-            text={block.rationale}
-            className="text-muted-foreground"
-            testId="block-rationale"
-          />
-        </div>
+        <CoachQuote
+          text={block.rationale}
+          testId="block-rationale"
+          className="mt-3"
+        />
         <PlanList>
           {block.weeks.map((week) => (
             <PlanListItem key={`${week.number}-${week.startDate}`}>

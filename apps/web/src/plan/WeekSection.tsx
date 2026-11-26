@@ -9,6 +9,7 @@ import { SessionSetting } from "../SessionSetting";
 import { TrainingLoadLine } from "../TrainingLoadLine";
 import { WeatherSummary } from "../WeatherSummary";
 import { Card } from "../components/Card";
+import { CoachQuote } from "../components/CoachQuote";
 import { StatusBadge } from "../components/StatusBadge";
 import { formatPlanDate } from "./formatPlanDate";
 import {
@@ -70,10 +71,10 @@ export function WeekSection({
             )
           )}
         </p>
-        <FormattedText
+        <CoachQuote
           text={week.rationale}
-          className="mt-2 text-base text-muted-foreground"
           testId="week-rationale"
+          className="mt-2"
         />
         {showCalories && week.dietProgress != null && (
           <DietProgressLine

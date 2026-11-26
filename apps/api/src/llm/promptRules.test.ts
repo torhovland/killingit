@@ -36,6 +36,7 @@ import {
   rollExtraPraise,
   SESSION_PURPOSE_RULES,
   SEVEN_SESSIONS_CLAUSE,
+  SPOKEN_ANSWER_RULES,
   systemUserMessages,
   TEXT_FORMATTING_RULES,
   TRAINING_LOAD_RULES,
@@ -77,8 +78,30 @@ describe("shared prompt composition", () => {
         DAILY_HEALTH_RULES,
         DIET_RULES,
         TEXT_FORMATTING_RULES,
+        promptRuleLiteral("SPOKEN_REGISTER_RULES"),
       ]),
     ).toEqual([]);
+  });
+
+  it("writes plan rationales in the coach's spoken register", () => {
+    const register = promptRuleLiteral("SPOKEN_REGISTER_RULES");
+
+    // Answers and plan rationales share one register, so the voice cannot drift.
+    expect(SPOKEN_ANSWER_RULES).toContain(register);
+    expect(PLAN_PROMPT_RULES).toContain(register);
+    expect(PLAN_PROMPT_RULES).toContain(
+      'Write every "rationale" field the way you\'d say it',
+    );
+    expect(PLAN_PROMPT_RULES).toContain(
+      "Say \"I'm keeping today easy because you're still carrying",
+    );
+    expect(PLAN_PROMPT_RULES).toContain("first person");
+    expect(register).toContain("everyday words, contractions, short sentences");
+    expect(register).toContain("No report voice");
+    // The rationale rule still describes the plan as it stands.
+    expect(PLAN_PROMPT_RULES).toContain('"we adjusted"');
+    // The spoken rule closes the shared plan rules instead of being buried.
+    expect(PLAN_PROMPT_RULES.trimEnd().endsWith(register)).toBe(true);
   });
 
   it("plans from a structured goal ledger rather than the next goal only", () => {
