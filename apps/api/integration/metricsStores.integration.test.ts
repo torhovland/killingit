@@ -10,6 +10,7 @@ import {
   recordGarminBodyMetrics,
   recordGarminFtp,
   recordPlanFtpEstimates,
+  recordUserBodyMetrics,
 } from "../src/metrics/store.js";
 import { dbUserStore } from "../src/users/store.js";
 import { thresholdPointsOf } from "./helpers.js";
@@ -309,6 +310,28 @@ describe("metrics stores", () => {
     expect(await thresholdPointsOf(user.id)).toEqual([
       { ...FTP, date: "2026-02-01", value: 260, source: "user" },
       { ...FTP, date: "2026-02-02", value: 305, source: "garmin" },
+    ]);
+  });
+
+  it("lets a hand-entered measurement replace the stored value for the day", async () => {
+    const user = await dbUserStore.ensureUser("auth0|manual-body-metrics");
+    await recordGarminBodyMetrics(user.id, [
+      { date: "2026-02-01", weightKg: 80, bodyFatPercent: 22 },
+    ]);
+
+    await recordUserBodyMetrics(user.id, {
+      date: "2026-02-01",
+      weightKg: 79.4,
+      bodyFatPercent: null,
+    });
+
+    // The entered weight wins over the scale, while the body fat the athlete
+    // did not restate keeps the scale's value.
+    expect(await loadMetricPoints(user.id, "weight")).toEqual([
+      { date: "2026-02-01", value: 79.4, source: "user" },
+    ]);
+    expect(await loadMetricPoints(user.id, "body_fat")).toEqual([
+      { date: "2026-02-01", value: 22, source: "garmin" },
     ]);
   });
 

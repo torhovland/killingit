@@ -4,6 +4,7 @@ import {
   type DietSummaryResponse,
   type FoodEntry,
 } from "@killingit/shared";
+import type { ReactNode } from "react";
 import { CalorieBalancePanel } from "../CalorieBalancePanel";
 import { EditableFoodEntryCard } from "./EditableFoodEntryCard";
 import { FormattedText } from "../FormattedText";
@@ -27,6 +28,7 @@ export function DietView({
   onOpenSettings,
   onOpenSurvey,
   onEntryUpdated,
+  measurements,
 }: {
   dietAdvice: boolean;
   /** Null while the summary is loading for the first time. */
@@ -39,6 +41,8 @@ export function DietView({
   onOpenSurvey: () => void;
   /** Called after a meal is edited, so the page reloads its totals. */
   onEntryUpdated: (entry: FoodEntry) => void;
+  /** The shared daily-measurement panel, shown below the page heading. */
+  measurements?: ReactNode;
 }) {
   const todayEntry = summary?.days.find((day) => day.date === today) ?? null;
   const goal = summary?.goal ?? DEFAULT_DIET_GOAL;
@@ -52,6 +56,8 @@ export function DietView({
           Your diet goal, today's calories, and every meal you have logged.
         </p>
       </div>
+
+      {measurements}
 
       {!dietAdvice && (
         <p className="rounded border bg-inset p-3 text-base">

@@ -37,11 +37,12 @@ days that the stored plan covers.
 
 ### Out of scope (deferred)
 
-- Manual body-weight or body-fat entry in the UI. Garmin is the measurement
-  source; an explicit entry form can be added later without a schema change.
 - Syncing Garmin's FTP for sports other than cycling, or other
   body-composition fields.
 - A custom date range on the Fitness page.
+
+Manual body-weight and body-fat entry is implemented separately; see
+`docs/specs/daily-measurements.md`.
 
 ## Data model
 

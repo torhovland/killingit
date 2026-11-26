@@ -208,6 +208,7 @@ describe("DietPage", () => {
     let summaryLoads = 0;
     stubFetch({
       "/api/me": () => Promise.resolve(json(ATHLETE)),
+      "/api/measurements": () => Promise.resolve(json({ metrics: [] })),
       "/api/diet/summary": () => {
         summaryLoads += 1;
         return Promise.resolve(
@@ -235,6 +236,7 @@ describe("DietPage", () => {
     let summaryLoads = 0;
     stubFetch({
       "/api/me": () => Promise.resolve(json(ATHLETE)),
+      "/api/measurements": () => Promise.resolve(json({ metrics: [] })),
       [`/api/diet/summary?today=${DAY_TWO}`]: () => nextDay.promise,
       "/api/diet/summary": () => {
         summaryLoads += 1;

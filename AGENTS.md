@@ -298,7 +298,7 @@ a spec is missing.
 
 **Garmin:** `docs/specs/garmin-activity-integration.md`, `docs/specs/garmin-sync-known-activities.md`, `docs/specs/garmin-activity-laps.md`, `docs/specs/garmin-activity-metrics.md`, `docs/specs/garmin-strength-exercise-sets.md`, `docs/specs/garmin-daily-health-metrics.md`, `docs/specs/garmin-sidecar-checks.md`, `docs/specs/garmin-sidecar-contract.md`, `docs/specs/garmin-sidecar-modules.md`.
 
-**Diet:** `docs/specs/diet-log.md`, `docs/specs/diet-coaching.md`, `docs/specs/diet-progress-targets.md`, `docs/specs/calorie-breakdown.md`.
+**Diet:** `docs/specs/diet-log.md`, `docs/specs/diet-coaching.md`, `docs/specs/daily-measurements.md`, `docs/specs/diet-progress-targets.md`, `docs/specs/calorie-breakdown.md`.
 
 **Web:** `docs/specs/accessibility-lint.md`, `docs/specs/chart-keyboard-navigation.md`, `docs/specs/current-user-provider.md`, `docs/specs/modal-dialog.md`, `docs/specs/pwa.md`, `docs/specs/signed-out-landing.md`, `docs/specs/web-api-base-url.md`, `docs/specs/web-api-request-parsing.md`, `docs/specs/web-api-resource-hook.md`, `docs/specs/web-cache-busting.md`, `docs/specs/web-coaching-hooks.md`,
 `docs/specs/web-coaching-pages.md`, `docs/specs/web-comment-form.md`, `docs/specs/web-component-library.md`, `docs/specs/web-date-formatting.md`, `docs/specs/web-form-drafts.md`, `docs/specs/web-interaction-tests.md`, `docs/specs/web-routing.md`, `docs/specs/web-token-renewal.md`, `docs/specs/user-time-zone.md`.

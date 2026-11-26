@@ -20,6 +20,68 @@ const metricSourceSchema = z.enum(["user", "coach", "garmin"]);
 
 export type MetricSource = z.infer<typeof metricSourceSchema>;
 
+/** The body measurements in the order the entry panel shows them. */
+export const BODY_MEASUREMENT_KEYS = ["weight", "bodyFat"] as const;
+
+export type BodyMeasurementKey = (typeof BODY_MEASUREMENT_KEYS)[number];
+
+/**
+ * The body measurements the athlete can enter by hand. Each one is stored in
+ * `athlete_metrics` and drawn on the Fitness page's Body chart. `field` is the
+ * request field that carries its value.
+ */
+export const BODY_MEASUREMENTS = {
+  weight: { label: "Weight", unit: "kg", field: "weightKg", max: 500 },
+  bodyFat: { label: "Body fat", unit: "%", field: "bodyFatPercent", max: 75 },
+} as const satisfies Record<
+  BodyMeasurementKey,
+  { label: string; unit: string; field: string; max: number }
+>;
+
+const bodyMeasurementKeySchema = z.enum(BODY_MEASUREMENT_KEYS);
+
+/**
+ * The measurements the athlete tracks, as `GET /api/measurements` reports
+ * them. A measure is tracked once the athlete has a stored point for it, which
+ * is what makes the Body chart draw its line.
+ */
+export const dailyMeasurementsResponseSchema = z.object({
+  metrics: z.array(bodyMeasurementKeySchema).default([]),
+});
+
+export type DailyMeasurementsResponse = z.infer<
+  typeof dailyMeasurementsResponseSchema
+>;
+
+/**
+ * One date's hand-entered body measurements. Either value may be omitted, so
+ * the panel can send only the fields it shows; a value replaces any stored
+ * value for that measure and day.
+ */
+export const dailyMeasurementSaveRequestSchema = z
+  .object({
+    date: planDateSchema,
+    weightKg: z.number().positive().max(500).nullable().optional(),
+    bodyFatPercent: z.number().positive().max(75).nullable().optional(),
+  })
+  .refine((value) => value.weightKg != null || value.bodyFatPercent != null, {
+    message: "Enter at least one measurement",
+  });
+
+export type DailyMeasurementSaveRequest = z.infer<
+  typeof dailyMeasurementSaveRequestSchema
+>;
+
+/** Response body of a saved measurement day. */
+export const dailyMeasurementSaveResponseSchema = z.object({
+  date: planDateSchema,
+  saved: z.literal(true),
+});
+
+export type DailyMeasurementSaveResponse = z.infer<
+  typeof dailyMeasurementSaveResponseSchema
+>;
+
 /**
  * How a threshold value is measured, which decides how an activity is scored
  * against it. `power` is in watts, `heart_rate` in beats per minute, `pace` in
