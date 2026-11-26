@@ -68,7 +68,7 @@ const MAX_PROMPT_SAMPLES = 90;
  * invalidate a cached analysis: only a newer athlete comment makes an analysis
  * stale, so a prompt edit or a model change does not re-bill the athlete.
  */
-export const ANALYSIS_PROMPT_VERSION = 21;
+export const ANALYSIS_PROMPT_VERSION = 22;
 
 /**
  * The athlete's current week, used to match an activity to its planned session

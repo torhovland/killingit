@@ -145,6 +145,9 @@ describe("buildCoachReplyMessages", () => {
       "It is not stored and does not change the plan",
     );
     expect(messages[0]?.content).toContain("This is a conversation only");
+    expect(messages[0]?.content).toContain(
+      "Answer directly in two to four short spoken sentences",
+    );
     expect(messages[0]?.content).toContain(SPOKEN_ANSWER_RULES);
     expect(messages[0]?.content).toContain(ANSWER_VARIETY_RULES);
   });
@@ -161,7 +164,9 @@ describe("buildCoachReplyMessages", () => {
     );
 
     expect(messages[0]?.role).toBe("system");
-    expect(messages[0]?.content).toContain("Reply briefly in 1-2 sentences");
+    expect(messages[0]?.content).toContain(
+      "Reply in two to four short spoken sentences",
+    );
     expect(messages[0]?.content).toContain(SPOKEN_ANSWER_RULES);
     expect(messages[0]?.content).toContain(ANSWER_VARIETY_RULES);
     expect(messages[0]?.content).toContain(TEXT_FORMATTING_RULES);
