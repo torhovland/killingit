@@ -102,7 +102,7 @@ describe("CoachPlanView levels", () => {
     const block = renderToStaticMarkup(
       <CoachPlanView pending={noPending} plan={plan} defaultTab="block" />,
     );
-    expect(block).toContain("Week 1");
+    expect(block).toContain('<p class="text-lg font-medium">Week 1</p>');
     expect(block).toContain("Week starting Mon, Oct 19");
     expect(block).toContain("Target load: Easy");
     expect(block).toContain("Aerobic base");
@@ -111,7 +111,7 @@ describe("CoachPlanView levels", () => {
     const season = renderToStaticMarkup(
       <CoachPlanView pending={noPending} plan={plan} defaultTab="season" />,
     );
-    expect(season).toContain("1. Base");
+    expect(season).toContain('<p class="text-lg font-medium">1. Base</p>');
     expect(season).toContain("6 weeks");
     expect(season).toContain("Aerobic endurance");
     expect(season).toContain("border-b");

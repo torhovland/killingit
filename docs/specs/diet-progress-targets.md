@@ -155,8 +155,10 @@ it: the season, first block, week, day, and unified update prompts.
   summary rather than after its weeks.
 - The Week tab shows the week-end target above the session list, before the
   first day of the week.
-- Targets appear as plain text in their period, not as a separate panel or bold
-  heading, so they stay subordinate to the training outline.
+- Targets appear under a `Diet target by the end of <period>` heading styled like
+  the Season goals and Block goals labels, with the weight and body-fat values
+  as a bulleted list and the coach's note beneath. The block title on the Season
+  tab and the week title on the Block tab are one size larger than that heading.
 - A period with no numeric target renders no target line at all, even when its
   note has content.
 - Targets appear only when diet advice is on, so turning it off hides all diet

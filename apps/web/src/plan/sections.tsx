@@ -101,9 +101,12 @@ export function DietProgressLine({
   }
   return (
     <div className="mt-3 flex flex-col gap-1 text-base" data-testid={testId}>
-      <p>
-        Diet target by the end of {period}: {targets.join(" and ")}
-      </p>
+      <p className="font-medium">Diet target by the end of {period}</p>
+      <ul className="flex list-disc flex-col gap-1 pl-5 text-muted-foreground">
+        {targets.map((target) => (
+          <li key={target}>{target}</li>
+        ))}
+      </ul>
       <FormattedText
         text={progress.note}
         className="text-muted-foreground"

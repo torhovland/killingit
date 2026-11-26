@@ -19,7 +19,7 @@ describe("RefreshingOverlay", () => {
 });
 
 describe("DietProgressLine", () => {
-  it("renders the target as plain text instead of a panel", () => {
+  it("renders the target under a heading as a list instead of a panel", () => {
     const html = renderToStaticMarkup(
       <DietProgressLine
         progress={{
@@ -33,9 +33,11 @@ describe("DietProgressLine", () => {
     );
 
     expect(html).toContain('data-testid="week-diet-progress"');
-    expect(html).toContain("Diet target by the end of the week:");
-    expect(html).toContain("81.5 kg and 18.0 % body fat");
-    expect(html).not.toContain("font-medium");
+    expect(html).toContain("Diet target by the end of the week");
+    expect(html).toContain("font-medium");
+    expect(html).toContain("list-disc");
+    expect(html).toContain("<li>81.5 kg</li>");
+    expect(html).toContain("<li>18.0 % body fat</li>");
     expect(html).not.toContain("rounded-lg border p-4");
     expect(html).not.toContain("bg-card");
   });

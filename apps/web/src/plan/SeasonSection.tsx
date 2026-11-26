@@ -67,7 +67,7 @@ export function SeasonSection({
       <PlanList>
         {season.blocks.map((block, index) => (
           <PlanListItem key={`${block.name}-${block.startDate}`}>
-            <p className="font-medium">
+            <p className="text-lg font-medium">
               {index + 1}. {block.name}
             </p>
             <p className="text-muted-foreground">
