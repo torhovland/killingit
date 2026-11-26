@@ -96,7 +96,7 @@ export function BlockSection({
         <PlanList>
           {block.weeks.map((week) => (
             <PlanListItem key={`${week.number}-${week.startDate}`}>
-              <p className="font-medium">Week {week.number}</p>
+              <p className="text-lg font-medium">Week {week.number}</p>
               <p className="text-muted-foreground">
                 Week starting {formatPlanDate(week.startDate)}
               </p>

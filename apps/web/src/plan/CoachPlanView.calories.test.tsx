@@ -59,10 +59,11 @@ describe("CoachPlanView calories", () => {
       />,
     );
     expect(week).toContain('data-testid="week-diet-progress"');
-    expect(week).toContain("Diet target by the end of the week:");
-    expect(week).toContain("81.5 kg and 18.0 % body fat");
+    expect(week).toContain("Diet target by the end of the week");
+    expect(week).toContain("81.5 kg");
+    expect(week).toContain("18.0 % body fat");
     expect(week).toContain("Hold weight through the week.");
-    expect(week.indexOf("Diet target by the end of the week:")).toBeLessThan(
+    expect(week.indexOf("Diet target by the end of the week")).toBeLessThan(
       week.indexOf("Morning Run"),
     );
 
@@ -75,17 +76,18 @@ describe("CoachPlanView calories", () => {
       />,
     );
     expect(block).toContain('data-testid="block-diet-progress"');
-    expect(block).toContain("Diet target by the end of the block:");
-    expect(block).toContain("80.5 kg and 18.0 % body fat");
+    expect(block).toContain("Diet target by the end of the block");
+    expect(block).toContain("80.5 kg");
+    expect(block).toContain("18.0 % body fat");
     expect(block).toContain('data-testid="block-week-diet-progress"');
-    expect(block).toContain("81.0 kg and 18.0 % body fat");
+    expect(block).toContain("81.0 kg");
     expect(block.indexOf("Aerobic base")).toBeLessThan(
       block.indexOf("Hold weight through the week."),
     );
-    expect(block.indexOf("Diet target by the end of the block:")).toBeLessThan(
+    expect(block.indexOf("Diet target by the end of the block")).toBeLessThan(
       block.indexOf("Establish consistent aerobic volume."),
     );
-    expect(block.indexOf("Diet target by the end of the block:")).toBeLessThan(
+    expect(block.indexOf("Diet target by the end of the block")).toBeLessThan(
       block.indexOf("Week starting"),
     );
 
@@ -98,15 +100,16 @@ describe("CoachPlanView calories", () => {
       />,
     );
     expect(season).toContain('data-testid="season-diet-progress"');
-    expect(season).toContain("Diet target by the end of the season:");
-    expect(season).toContain("78.0 kg and 15.0 % body fat");
+    expect(season).toContain("Diet target by the end of the season");
+    expect(season).toContain("78.0 kg");
+    expect(season).toContain("15.0 % body fat");
     expect(season).toContain('data-testid="season-block-diet-progress"');
-    expect(season).toContain("80.0 kg and 18.0 % body fat");
+    expect(season).toContain("80.0 kg");
     expect(season.indexOf("Aerobic endurance")).toBeLessThan(
       season.indexOf("Hold weight while building volume."),
     );
     expect(season.indexOf("Aerobic endurance")).toBeLessThan(
-      season.indexOf("Diet target by the end of the season:"),
+      season.indexOf("Diet target by the end of the season"),
     );
   });
 
@@ -129,7 +132,7 @@ describe("CoachPlanView calories", () => {
         defaultTab="week"
       />,
     );
-    expect(html).not.toContain("Diet target by the end of the week:");
+    expect(html).not.toContain("Diet target by the end of the week");
   });
 
   it("shows today's needed, logged and remaining calories", () => {
@@ -235,7 +238,7 @@ describe("CoachPlanView calories", () => {
       />,
     );
 
-    expect(html).not.toContain("Diet target by the end of the block:");
+    expect(html).not.toContain("Diet target by the end of the block");
     expect(html).not.toContain("No post-February body-composition target");
   });
 
