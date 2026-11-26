@@ -20,24 +20,25 @@ const metricSourceSchema = z.enum(["user", "coach", "garmin"]);
 
 export type MetricSource = z.infer<typeof metricSourceSchema>;
 
+/** The body measurements in the order the entry panel shows them. */
+export const BODY_MEASUREMENT_KEYS = ["weight", "bodyFat"] as const;
+
+export type BodyMeasurementKey = (typeof BODY_MEASUREMENT_KEYS)[number];
+
 /**
- * The body measurements the athlete can enter by hand, in display order. Each
- * one is stored in `athlete_metrics` and drawn on the Fitness page's Body
- * chart. `field` is the request field that carries its value.
+ * The body measurements the athlete can enter by hand. Each one is stored in
+ * `athlete_metrics` and drawn on the Fitness page's Body chart. `field` is the
+ * request field that carries its value.
  */
 export const BODY_MEASUREMENTS = {
   weight: { label: "Weight", unit: "kg", field: "weightKg", max: 500 },
   bodyFat: { label: "Body fat", unit: "%", field: "bodyFatPercent", max: 75 },
-} as const;
+} as const satisfies Record<
+  BodyMeasurementKey,
+  { label: string; unit: string; field: string; max: number }
+>;
 
-export type BodyMeasurementKey = keyof typeof BODY_MEASUREMENTS;
-
-/** The body measurements in the order the entry panel shows them. */
-export const BODY_MEASUREMENT_KEYS = Object.keys(
-  BODY_MEASUREMENTS,
-) as BodyMeasurementKey[];
-
-const bodyMeasurementKeySchema = z.enum(["weight", "bodyFat"]);
+const bodyMeasurementKeySchema = z.enum(BODY_MEASUREMENT_KEYS);
 
 /**
  * The measurements the athlete tracks, as `GET /api/measurements` reports
