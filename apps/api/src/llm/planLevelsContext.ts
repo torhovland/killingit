@@ -50,7 +50,7 @@ export function formatSeasonPlan(plan: SeasonPlan): string {
 
 /** One line of the season's goal ledger. */
 function formatSeasonGoal(goal: SeasonGoal): string {
-  return `- ${goal.date} (${goal.priority}): ${goal.title} — ${goal.target}`;
+  return `- ${goal.dateText ?? goal.date} (${goal.priority}): ${goal.title} — ${goal.target}`;
 }
 
 /** The block's sub-goal lines, indented for the level that renders them. */

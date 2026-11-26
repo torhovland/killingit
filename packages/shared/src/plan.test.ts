@@ -316,6 +316,7 @@ describe("goal ledger schemas", () => {
           {
             title: "Sub-2:00 half marathon",
             date: "2027-05-23",
+            dateText: null,
             priority: "A",
             target: "Under 2:00",
           },
@@ -325,9 +326,31 @@ describe("goal ledger schemas", () => {
     expect(parsed.season.goals?.[0]).toEqual({
       title: "Sub-2:00 half marathon",
       date: "2027-05-23",
+      dateText: null,
       priority: "A",
       target: "Under 2:00",
     });
+  });
+
+  it("accepts a month-level goal with a planning anchor", () => {
+    const plan = makePlan();
+    const parsed = coachPlanSchema.parse({
+      ...plan,
+      season: {
+        ...plan.season,
+        goals: [
+          {
+            title: "Paris-Brest-Paris",
+            date: "2027-08-16",
+            dateText: "August 2027",
+            priority: "A",
+            target: "Finish comfortably",
+          },
+        ],
+      },
+    });
+    expect(parsed.season.goals?.[0]?.dateText).toBe("August 2027");
+    expect(parsed.season.goals?.[0]?.date).toBe("2027-08-16");
   });
 
   it("rejects an unknown priority or sub-goal role", () => {
@@ -377,6 +400,7 @@ describe("goal ledger schemas", () => {
           {
             title: "Sub-2:00 half marathon",
             date: "2027-05-23",
+            dateText: null,
             priority: "A",
             target: "Under 2:00",
           },

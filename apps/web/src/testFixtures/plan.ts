@@ -26,6 +26,7 @@ export const plan: CoachPlan = {
       {
         title: "Sub-4-hour marathon",
         date: "2027-04-01",
+        dateText: "Spring 2027",
         priority: "A",
         target: "Under 4:00",
       },
