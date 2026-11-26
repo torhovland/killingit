@@ -147,7 +147,9 @@ existed are not retrofitted and do not fail.
 - `GOAL_LEDGER_RULES` describes the goal list, priorities, month/year planning
   anchors and `dateText`, the season headline, backward planning, block
   coverage, recovery and taper accounting, and the rule that sub-goals are
-  coach-defined rather than interpolated.
+  coach-defined rather than interpolated. A target is a complete sentence
+  starting with a capital letter and ending with a period, and it does not
+  start with the role word.
 - `GOAL_DEMAND_RULES` makes the coach derive the goal's required power, pace or
   time from the input, anchor it to a prior comparable result, and state the
   current gap. It requires a numeric build target and a weekly FTP/pace

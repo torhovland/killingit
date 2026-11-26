@@ -140,6 +140,16 @@ export function SeasonGoalList({
   );
 }
 
+/** One target as a complete sentence, capitalised and punctuated for display. */
+function subGoalTargetSentence(target: string): string {
+  const trimmed = target.trim();
+  if (trimmed === "") {
+    return trimmed;
+  }
+  const sentence = `${trimmed.charAt(0).toUpperCase()}${trimmed.slice(1)}`;
+  return /[.!?]$/.test(sentence) ? sentence : `${sentence}.`;
+}
+
 /** What a block does for every goal still ahead. */
 export function SubGoalList({
   subGoals,
@@ -163,12 +173,18 @@ export function SubGoalList({
           return (
             <li
               key={`${subGoal.goalDate}-${subGoal.goalTitle}-${subGoal.byDate}-${subGoal.target}`}
+              className="flex flex-col gap-0.5"
             >
-              <span className="font-medium">
-                {SUB_GOAL_ROLE_LABELS[subGoal.role]}:
-              </span>{" "}
-              {subGoal.target} by {formatPlanDate(subGoal.byDate)} for{" "}
-              {subGoal.goalTitle} ({goalDate})
+              <p>
+                <span className="font-medium">
+                  {SUB_GOAL_ROLE_LABELS[subGoal.role]}:
+                </span>{" "}
+                {subGoalTargetSentence(subGoal.target)}
+              </p>
+              <p className="text-sm text-muted-foreground">
+                Due {formatPlanDate(subGoal.byDate)} · Goal: {subGoal.goalTitle}{" "}
+                ({goalDate})
+              </p>
             </li>
           );
         })}

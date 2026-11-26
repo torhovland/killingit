@@ -61,7 +61,8 @@ describe("CoachPlanView levels", () => {
     expect(season).toContain('data-testid="season-block-goals"');
     expect(block).toContain('data-testid="block-goals"');
     expect(block).toContain("Block goals");
-    expect(block).toContain("Six consistent weeks of aerobic running");
+    expect(block).toContain("Six consistent weeks of aerobic running.");
+    expect(block).toContain("Due Mon, Nov 30 · Goal: Sub-4-hour marathon");
     expect(block).toContain("(Spring 2027)");
   });
 
