@@ -90,7 +90,9 @@ describe("shared prompt composition", () => {
       '"maintain"',
       '"accept-decline"',
       "Even when every goal is A",
-      "not an arithmetic share",
+      "not a range",
+      "an arithmetic share of a season total",
+      "an earlier block's target is a precursor",
       "Recovery and taper blocks",
     ]) {
       expect(ledger).toContain(fragment);
@@ -109,7 +111,10 @@ describe("shared prompt composition", () => {
       "complete a stated distance",
       "concrete completion target",
       "200 km brevet",
-      "not replace it with an interim milestone",
+      "not a copy of the final goal",
+      "120 km ride at 18 km/h",
+      "The first number in that final build target",
+      "FTP 272 W as an interim milestone toward 285 W",
       'week-by-week "estimatedFtpWatts"',
       '"build" sub-goal',
     ]) {
