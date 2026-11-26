@@ -37,6 +37,7 @@ export function SeasonSection({
             thresholds={thresholds}
             testId="season-thresholds"
             inline
+            showLabel={false}
           />
         ) : (
           estimatedFtp != null && (

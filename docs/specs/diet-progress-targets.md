@@ -151,8 +151,10 @@ it: the season, first block, week, day, and unified update prompts.
 - The Season tab shows each block's target at the bottom of that block's entry,
   and the season-end target at the bottom of the season.
 - The Block tab shows each week's target at the bottom of that week's entry, and
-  the block-end target at the bottom of the block.
-- The Week tab shows the week-end target at the bottom of the week.
+  the block-end target above the coach's rationale so it is read with the block
+  summary rather than after its weeks.
+- The Week tab shows the week-end target above the session list, before the
+  first day of the week.
 - Targets appear as plain text in their period, not as a separate panel or bold
   heading, so they stay subordinate to the training outline.
 - A period with no numeric target renders no target line at all, even when its

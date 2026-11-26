@@ -110,6 +110,36 @@ describe("CoachPlanView thresholds", () => {
     expect(html).not.toContain('data-testid="plan-today-thresholds"');
   });
 
+  it("omits the Thresholds label below the week, block and season titles", () => {
+    const thresholds: ThresholdSummary[] = [
+      {
+        sport: "cycling",
+        measure: "ftp",
+        label: "FTP",
+        unit: "W",
+        kind: "power",
+        source: "user",
+        date: "2026-10-20",
+        value: 250,
+      },
+    ];
+
+    for (const defaultTab of ["week", "block", "season"] as const) {
+      const html = renderToStaticMarkup(
+        <CoachPlanView
+          pending={noPending}
+          plan={plan}
+          defaultTab={defaultTab}
+          thresholds={thresholds}
+        />,
+      );
+
+      expect(html).toContain(`data-testid="${defaultTab}-thresholds"`);
+      expect(html).toContain("cycling FTP");
+      expect(html).not.toContain(">Thresholds<");
+    }
+  });
+
   it("uses a bullet after the Thresholds label instead of a colon", () => {
     const html = renderToStaticMarkup(
       <CoachPlanView
