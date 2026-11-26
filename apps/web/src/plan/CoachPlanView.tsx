@@ -155,6 +155,7 @@ export function CoachPlanView({
             testId="plan-block"
             refreshing={refreshing.block}
             thresholds={thresholds}
+            goals={plan.season.goals}
             showDiet={showCalories}
           />
           {plan.nextBlock !== null && (
@@ -164,6 +165,7 @@ export function CoachPlanView({
               testId="plan-next-block"
               refreshing={refreshing.nextBlock}
               thresholds={thresholds}
+              goals={plan.season.goals}
               showDiet={showCalories}
             />
           )}

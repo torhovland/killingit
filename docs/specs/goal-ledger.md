@@ -26,9 +26,11 @@ the plan depends on.
    words in `dateText`.
 2. Every season block summary and detailed block plan carries `subGoals`. A
    sub-goal names the goal it serves, the block's role for that goal (`build`,
-   `maintain` or `accept-decline`), a coach-defined measurable target, and the
-   date inside the block by which the target should be reached. A block may
-   carry several sub-goals for one goal.
+   `maintain` or `accept-decline`), one concrete measurable target, and the date
+   inside the block by which the target should be reached. The target is that
+   block's milestone, not a range or a copy of the final goal; only the last
+   specific build, or the block containing the goal date, states the
+   goal-required performance. A block may carry several sub-goals for one goal.
 3. Every block that starts on or before a goal's date must account for that goal
    with at least one sub-goal. A block with no goal still ahead carries an empty
    `subGoals` array. Recovery and taper blocks still account for every future
@@ -37,8 +39,10 @@ the plan depends on.
    says otherwise or the coach has a reason to rank one lower. Even when every
    goal is `A`, the coach may focus on the next goal and accept a decline for a
    later one, provided the remaining time is enough to train for the later goal.
-5. Sub-goals are defined by the coach from training science. They are not a
-   mathematical interpolation of a season total or an even weekly spread.
+5. Sub-goals are one concrete target defined by the coach from training
+   science, not a range, a mathematical interpolation of a season total or an
+   even weekly spread. An earlier block states the milestone it reaches by its
+   own date; the final build states the goal-required performance.
 6. The shared prompt rules require the goal ledger, the backward planning from
    each goal, the block sub-goal coverage, week planning that names the block
    sub-goals it advances, a derived goal-demand estimate, and a load audit. Every
@@ -143,7 +147,9 @@ existed are not retrofitted and do not fail.
 - `GOAL_LEDGER_RULES` describes the goal list, priorities, month/year planning
   anchors and `dateText`, the season headline, backward planning, block
   coverage, recovery and taper accounting, and the rule that sub-goals are
-  coach-defined rather than interpolated.
+  coach-defined rather than interpolated. A target is a complete sentence
+  starting with a capital letter and ending with a period, and it does not
+  start with the role word.
 - `GOAL_DEMAND_RULES` makes the coach derive the goal's required power, pace or
   time from the input, anchor it to a prior comparable result, and state the
   current gap. It requires a numeric build target and a weekly FTP/pace
@@ -158,7 +164,11 @@ existed are not retrofitted and do not fail.
   day, and do not add them on top of a hard week.
 
 The formatters render the season goal ledger and a block's sub-goals into every
-prompt, including the update prompts, so a refresh sees the stored ledger.
+prompt, including the update prompts, so a refresh sees the stored ledger. A
+sub-goal target does not repeat the block's `byDate` or the goal date; the app
+appends those fields. The Block goals list shows `dateText` for a month-level
+goal, so a goal with anchor 2027-04-16 and `dateText` "early April 2027" reads
+"early April 2027", not an exact anchor day.
 
 ## Benchmark and simulation
 
@@ -186,7 +196,8 @@ the analysis.
    included with `dateText` and a middle-day planning anchor.
 5. The season `goal` headline summarises the season's goals and shape; it need
    not list every goal when there are many, but it must not imply a single-goal
-   season.
+   season. A block sub-goal target does not repeat its byDate or goal date; the
+   app appends them, and a month-level goal shows `dateText`.
 6. The weekly, daily and update prompts require the week focus to name the block
    sub-goals it advances.
 7. The coach derives the goal-required performance from the input and states the

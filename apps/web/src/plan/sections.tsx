@@ -140,12 +140,24 @@ export function SeasonGoalList({
   );
 }
 
+/** One target as a complete sentence, capitalised and punctuated for display. */
+function subGoalTargetSentence(target: string): string {
+  const trimmed = target.trim();
+  if (trimmed === "") {
+    return trimmed;
+  }
+  const sentence = `${trimmed.charAt(0).toUpperCase()}${trimmed.slice(1)}`;
+  return /[.!?]$/.test(sentence) ? sentence : `${sentence}.`;
+}
+
 /** What a block does for every goal still ahead. */
 export function SubGoalList({
   subGoals,
+  goals,
   testId,
 }: {
   subGoals: readonly BlockSubGoal[] | undefined;
+  goals?: readonly SeasonGoal[] | undefined;
   testId: string;
 }) {
   if (subGoals === undefined || subGoals.length === 0) {
@@ -155,17 +167,27 @@ export function SubGoalList({
     <div className="mt-3 flex flex-col gap-1 text-base" data-testid={testId}>
       <p className="font-medium">Block goals</p>
       <ul className="flex list-disc flex-col gap-1 pl-5 text-muted-foreground">
-        {subGoals.map((subGoal) => (
-          <li
-            key={`${subGoal.goalDate}-${subGoal.goalTitle}-${subGoal.byDate}-${subGoal.target}`}
-          >
-            <span className="font-medium">
-              {SUB_GOAL_ROLE_LABELS[subGoal.role]}:
-            </span>{" "}
-            {subGoal.target} by {formatPlanDate(subGoal.byDate)} for{" "}
-            {subGoal.goalTitle} ({formatPlanDate(subGoal.goalDate)})
-          </li>
-        ))}
+        {subGoals.map((subGoal) => {
+          const goal = goals?.find((entry) => entry.date === subGoal.goalDate);
+          const goalDate = goal?.dateText ?? formatPlanDate(subGoal.goalDate);
+          return (
+            <li
+              key={`${subGoal.goalDate}-${subGoal.goalTitle}-${subGoal.byDate}-${subGoal.target}`}
+              className="flex flex-col gap-0.5"
+            >
+              <p>
+                <span className="font-medium">
+                  {SUB_GOAL_ROLE_LABELS[subGoal.role]}:
+                </span>{" "}
+                {subGoalTargetSentence(subGoal.target)}
+              </p>
+              <p className="text-sm text-muted-foreground">
+                Due {formatPlanDate(subGoal.byDate)} · Goal: {subGoal.goalTitle}{" "}
+                ({goalDate})
+              </p>
+            </li>
+          );
+        })}
       </ul>
     </div>
   );
