@@ -153,6 +153,6 @@ describe("period review prompt", () => {
   });
 
   it("has a stable prompt version", () => {
-    expect(PERIOD_REVIEW_PROMPT_VERSION).toBe(5);
+    expect(PERIOD_REVIEW_PROMPT_VERSION).toBe(6);
   });
 });

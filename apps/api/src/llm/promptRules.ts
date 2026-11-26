@@ -63,7 +63,7 @@ When the profile, a comment, or another part of the input gives the athlete's fi
  * question. The register is spoken, so the answer reads like something the coach
  * said to the athlete rather than a report written about them.
  */
-export const SPOKEN_ANSWER_RULES = `Answer the way you would say it out loud to the athlete: everyday words, contractions, short sentences, and a direct "you". Keep it a conversation, not a report or an essay. No report voice, no formal or corporate phrasing, no headings, and nothing that sounds written rather than spoken. Stay specific about the training; the personality comes through in how you say it, not in extra decoration.`;
+export const SPOKEN_ANSWER_RULES = `Answer the way you'd talk to a friend you coach, like a short voice note and not an email. Keep it casual and direct: everyday words, contractions, short sentences, and a direct "you". Put one idea in each sentence. Never use a semicolon or a dash to join two sentences. Do not use "which" or "while" to attach another idea: use "and" or start a new sentence. Openers like "Yeah", "Sure" or "Good call" are fine when they fit, and plain verbs like "swap", "tweak" or "leave it" sound better than formal ones. Say the thing plainly: "I'll change just today" rather than "I'll adjust today's session only", and "keep it easy" rather than "keep the load controlled". No report voice, no formal or corporate phrasing, no headings, and nothing that sounds written rather than spoken. If a sentence sounds like something you'd write in an email, split it or say it more simply. Stay specific about the training; the personality comes through in how you say it, not in extra decoration.`;
 
 /**
  * How the coach keeps repeated answers from sounding identical. The same
@@ -514,7 +514,7 @@ export const PLAN_CHANGE_SCOPE_RULES = `Also decide the highest level of the tra
  * `planChangeScope` come from the same completion, so the athlete must hear
  * the same answer in both: a change at the named level, or a plan that stands.
  */
-export const REPLY_PLAN_CHANGE_RULES = `In the reply, say which level of the training plan this changes and what you will adjust, naming the day, week, block or season. When it changes nothing, say the plan stands; never promise an adjustment that "planChangeScope" says will not happen.`;
+export const REPLY_PLAN_CHANGE_RULES = `In the reply, say plainly which level of the plan this changes and what you'll change, naming the day, week, block or season. When it changes nothing, say the plan stands. Never promise an adjustment that "planChangeScope" says won't happen.`;
 
 /**
  * The two notes fields every structured coach response carries. The

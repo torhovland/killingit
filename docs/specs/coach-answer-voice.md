@@ -2,6 +2,10 @@
 
 - **Status:** Accepted (implemented)
 - **Date:** 2026-11-26
+- **Updated:** 2026-11-26 — the first pass still read like a written report: it
+  stacked a `which` clause, a `while` clause and a semicolon into one sentence.
+  The spoken rule now names those habits and gives plain-spoken alternatives,
+  and the reply prompts ask for two to four short sentences instead of 1-2.
 - **Related:** `docs/specs/coach-personality.md`,
   `docs/specs/coach-feedback-and-program-review.md`,
   `docs/specs/coach-reply-context.md`, `docs/specs/period-reviews.md`,
@@ -52,9 +56,17 @@ time rather than read the same stock reply with the details swapped.
 
 `apps/api/src/llm/promptRules.ts` owns the fragments:
 
-- `SPOKEN_ANSWER_RULES` makes the answer read like speech: everyday words,
-  contractions, short sentences, direct second-person address, no report voice,
-  no formal or corporate phrasing, and no headings.
+- `SPOKEN_ANSWER_RULES` makes the answer read like a short voice note to a
+  friend the coach trains, rather than an email: casual, direct, everyday
+  words, contractions, short sentences, direct second-person address, and one
+  idea per sentence. It allows openers such as "Yeah", "Sure" or "Good call"
+  and plain verbs such as "swap", "tweak" or "leave it", and forbids using
+  `which` or `while` to join ideas, semicolons and dashes joining two
+  sentences. It
+  gives concrete plain-spoken alternatives: "I'll change just today" rather
+  than "I'll adjust today's session only", and "keep it easy" rather than
+  "keep the load controlled". It also rules out a report or essay voice,
+  formal or corporate phrasing, and headings.
 - `ANSWER_VARIETY_RULES` forbids reusing a formula from earlier answers and asks
   for a fresh opening, sentence shape and wording. It also says two answers to
   different inputs must not read like one template with the details swapped.
@@ -76,7 +88,7 @@ inherits them through `COACH_REPLY_SYSTEM_PROMPT`.
 | `REPAIR_TEMPERATURE`      | 0.2    | 0.2   |
 
 The prompt versions are bumped for the changed prompts:
-`ANALYSIS_PROMPT_VERSION` to 21 and `PERIOD_REVIEW_PROMPT_VERSION` to 5. Replies
+`ANALYSIS_PROMPT_VERSION` to 22 and `PERIOD_REVIEW_PROMPT_VERSION` to 6. Replies
 carry no prompt version.
 
 ## Acceptance criteria
@@ -85,7 +97,8 @@ carry no prompt version.
    reply, quick question and coach-question answer prompts contain
    `SPOKEN_ANSWER_RULES` and `ANSWER_VARIETY_RULES`.
 2. `SPOKEN_ANSWER_RULES` asks for spoken language, contractions, short sentences
-   and direct address, and rules out a report or essay voice.
+   and direct address, asks for one idea per sentence, forbids stacked `which`
+   and `while` clauses and semicolons, and rules out a report or essay voice.
 3. `ANSWER_VARIETY_RULES` asks for a fresh opening and wording and forbids
    reusing a stock template.
 4. The reply temperature is higher than the plan temperature, and the review
