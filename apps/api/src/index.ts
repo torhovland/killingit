@@ -25,6 +25,7 @@ import { createFitnessRoute } from "./routes/fitness.js";
 import { createGarminRoute } from "./routes/garmin.js";
 import { health } from "./routes/health.js";
 import { createLlmRoute } from "./routes/llm.js";
+import { createMeasurementsRoute } from "./routes/measurements.js";
 import { createMeRoute } from "./routes/me.js";
 import { createPlanRoute } from "./routes/plan.js";
 import { createQuestionsRoute } from "./routes/questions.js";
@@ -140,6 +141,10 @@ export function createApp(options: AppDependencies = {}): Hono {
   // The fitness history behind the Fitness page: daily load and the estimated
   // FTP over a window. Read-only; derived from the cached feed and the plan.
   api.route("/fitness", createFitnessRoute(deps));
+
+  // The body measurements behind the Body chart: which measures the athlete
+  // tracks, and the hand-entered values that fill one day's row.
+  api.route("/measurements", createMeasurementsRoute(deps));
 
   // The calendar page: activities, manual entries, planned sessions, block
   // starts, and the season end over the range the athlete has data for.

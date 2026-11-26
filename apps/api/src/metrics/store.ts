@@ -221,6 +221,23 @@ export async function recordGarminFtp(
 }
 
 /**
+ * Stores body measurements the athlete entered by hand. They are the athlete's
+ * own values, so they replace a Garmin measurement or coach estimate for the
+ * same measure and day; a measure the caller omits is left untouched.
+ */
+export async function recordUserBodyMetrics(
+  userId: number,
+  input: {
+    date: string;
+    weightKg?: number | null | undefined;
+    bodyFatPercent?: number | null | undefined;
+  },
+): Promise<void> {
+  const writes = bodyWrites(input.date, input.weightKg, input.bodyFatPercent);
+  await recordMetricBatch(db, userId, "user", [], writes);
+}
+
+/**
  * Stores the body-composition values the coach found in the athlete's input.
  * The point is dated by the statement it came from, so a weight mentioned in a
  * comment lands on that activity's day. Points after `throughDate` are ignored:

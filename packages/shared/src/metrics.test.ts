@@ -1,11 +1,57 @@
 import { describe, expect, it } from "bun:test";
 import {
   activitySport,
+  dailyMeasurementSaveRequestSchema,
+  dailyMeasurementsResponseSchema,
   formatThresholdNumber,
   formatThresholdValue,
   interpolateMetricSeries,
   sessionSports,
 } from "./metrics.js";
+
+describe("daily measurements", () => {
+  it("reports the tracked body measures", () => {
+    expect(
+      dailyMeasurementsResponseSchema.parse({ metrics: ["weight", "bodyFat"] }),
+    ).toEqual({ metrics: ["weight", "bodyFat"] });
+    expect(dailyMeasurementsResponseSchema.parse({})).toEqual({ metrics: [] });
+  });
+
+  it("accepts one or both measurements for a date", () => {
+    expect(
+      dailyMeasurementSaveRequestSchema.parse({
+        date: "2026-11-26",
+        weightKg: 81.4,
+      }),
+    ).toEqual({ date: "2026-11-26", weightKg: 81.4 });
+    expect(
+      dailyMeasurementSaveRequestSchema.parse({
+        date: "2026-11-26",
+        weightKg: 81.4,
+        bodyFatPercent: 18.2,
+      }),
+    ).toEqual({ date: "2026-11-26", weightKg: 81.4, bodyFatPercent: 18.2 });
+  });
+
+  it("rejects a day with no measurement or an impossible value", () => {
+    expect(
+      dailyMeasurementSaveRequestSchema.safeParse({ date: "2026-11-26" })
+        .success,
+    ).toBe(false);
+    expect(
+      dailyMeasurementSaveRequestSchema.safeParse({
+        date: "2026-11-26",
+        weightKg: 501,
+      }).success,
+    ).toBe(false);
+    expect(
+      dailyMeasurementSaveRequestSchema.safeParse({
+        date: "2026-11-26",
+        bodyFatPercent: 76,
+      }).success,
+    ).toBe(false);
+  });
+});
 
 describe("activitySport", () => {
   it("maps session words for cycling to the cycling key", () => {

@@ -195,6 +195,8 @@ export interface TestAppOptions {
   loadActivityTrainingLoads?: AppDependencies["loadActivityTrainingLoads"];
   estimateManualTss?: AppDependencies["estimateManualTss"];
   loadThresholdHistory?: AppDependencies["loadThresholdHistory"];
+  loadBodyHistory?: AppDependencies["loadBodyHistory"];
+  recordUserBodyMetrics?: AppDependencies["recordUserBodyMetrics"];
   loadCoachingInputs?: (
     userId: number,
     weekStartDate: string,
@@ -300,7 +302,10 @@ export function makeTestApp(options: TestAppOptions = {}) {
           timelines: [],
           summaries: [],
         })),
-    loadBodyHistory: () => Promise.resolve({ weight: [], bodyFat: [] }),
+    loadBodyHistory:
+      options.loadBodyHistory ??
+      (() => Promise.resolve({ weight: [], bodyFat: [] })),
+    recordUserBodyMetrics: options.recordUserBodyMetrics,
     syncAthleteReading: () => Promise.resolve(null),
     planTriggerDebounceMs: 0,
     loadEvents: () => Promise.resolve(options.events ?? []),

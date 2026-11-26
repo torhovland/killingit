@@ -6,6 +6,7 @@ import { useNavigate } from "../navigation";
 import { useTimeZone } from "../TimeZoneContext";
 import { useApiResource } from "../useApiResource";
 import { getToday } from "../useToday";
+import { DailyMeasurementsSection } from "../measurements/DailyMeasurementsSection";
 
 /** Loads the diet goal and the daily food log for the Diet page. */
 export function DietPage() {
@@ -34,6 +35,7 @@ export function DietPage() {
       onOpenSettings={() => navigate("settings")}
       onOpenSurvey={() => navigate("survey")}
       onEntryUpdated={summary.reload}
+      measurements={<DailyMeasurementsSection />}
     />
   );
 }

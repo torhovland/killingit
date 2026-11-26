@@ -43,6 +43,7 @@ import type { loadDailyHealthForUser } from "./metrics/dailyMetrics.js";
 import type {
   loadBodyHistoryForUser,
   loadThresholdHistoryForUser,
+  recordUserBodyMetrics,
 } from "./metrics/store.js";
 import type {
   CoachingInputs,
@@ -120,6 +121,8 @@ export interface AppDependencies {
   loadBodyHistory?: typeof loadBodyHistoryForUser | undefined;
   /** Injectable for route tests; defaults to the stored daily health series. */
   loadDailyHealth?: typeof loadDailyHealthForUser | undefined;
+  /** Hand-entered body measurements, injectable for DB-free route tests. */
+  recordUserBodyMetrics?: typeof recordUserBodyMetrics | undefined;
   /** Injectable for route tests; defaults to the coach reading the text. */
   syncAthleteReading?: typeof syncAthleteReading | undefined;
   /** Stored dated goals and events, injectable for DB-free route tests. */

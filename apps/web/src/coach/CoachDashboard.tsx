@@ -10,6 +10,7 @@ import { CoachingInputsSection } from "./CoachingInputsSection";
 import { pollCoachReplies } from "./coachReplyPoll";
 import { useCurrentUser } from "../CurrentUserProvider";
 import { FoodLogSection } from "../diet/FoodLogSection";
+import { DailyMeasurementsSection } from "../measurements/DailyMeasurementsSection";
 import { PendingReviewsList } from "./PendingReviewsList";
 import { useTimeZone } from "../TimeZoneContext";
 import { useCoachQuestion } from "./useCoachQuestion";
@@ -134,6 +135,8 @@ export function CoachDashboard({ planRefreshKey }: CoachDashboardProps) {
       )}
 
       <FoodLogSection enabled={dietAdvice} onLogged={bumpPlan} />
+
+      <DailyMeasurementsSection />
 
       {coachQuestion.question !== null && (
         <section className="flex flex-col gap-3" data-testid="coach-question">
