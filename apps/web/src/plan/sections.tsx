@@ -10,7 +10,6 @@ import {
 import { Bullet } from "../Bullet";
 import { FormattedText } from "../FormattedText";
 import { Spinner } from "../Spinner";
-import { Card } from "../components/Card";
 import { formatPlanDate } from "./formatPlanDate";
 
 const SUB_GOAL_ROLE_LABELS: Record<BlockSubGoalRole, string> = {
@@ -84,6 +83,12 @@ export function DietProgressLine({
   period: string;
   testId: string;
 }) {
+  if (
+    progress.targetWeightKg === null &&
+    progress.targetBodyFatPercent === null
+  ) {
+    return null;
+  }
   const targets: string[] = [];
   if (progress.targetWeightKg !== null) {
     targets.push(`${progress.targetWeightKg.toFixed(1)} kg`);
@@ -92,22 +97,16 @@ export function DietProgressLine({
     targets.push(`${progress.targetBodyFatPercent.toFixed(1)} % body fat`);
   }
   return (
-    <Card
-      className="mt-3 flex flex-col gap-1 rounded p-3 text-base"
-      data-testid={testId}
-    >
+    <div className="mt-3 flex flex-col gap-1 text-base" data-testid={testId}>
       <p>
-        <span className="font-medium">
-          Diet target by the end of {period}:{" "}
-        </span>
-        {targets.length > 0 ? targets.join(" and ") : "no numeric target"}
+        Diet target by the end of {period}: {targets.join(" and ")}
       </p>
       <FormattedText
         text={progress.note}
         className="text-muted-foreground"
         testId={`${testId}-note`}
       />
-    </Card>
+    </div>
   );
 }
 

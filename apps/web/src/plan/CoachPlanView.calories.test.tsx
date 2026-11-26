@@ -62,6 +62,9 @@ describe("CoachPlanView calories", () => {
     expect(week).toContain("Diet target by the end of the week:");
     expect(week).toContain("81.5 kg and 18.0 % body fat");
     expect(week).toContain("Hold weight through the week.");
+    expect(week.indexOf("Morning Run")).toBeLessThan(
+      week.indexOf("Diet target by the end of the week:"),
+    );
 
     const block = renderToStaticMarkup(
       <CoachPlanView
@@ -76,6 +79,12 @@ describe("CoachPlanView calories", () => {
     expect(block).toContain("80.5 kg and 18.0 % body fat");
     expect(block).toContain('data-testid="block-week-diet-progress"');
     expect(block).toContain("81.0 kg and 18.0 % body fat");
+    expect(block.indexOf("Aerobic base")).toBeLessThan(
+      block.indexOf("Hold weight through the week."),
+    );
+    expect(block.indexOf("Week starting")).toBeLessThan(
+      block.indexOf("Diet target by the end of the block:"),
+    );
 
     const season = renderToStaticMarkup(
       <CoachPlanView
@@ -90,6 +99,12 @@ describe("CoachPlanView calories", () => {
     expect(season).toContain("78.0 kg and 15.0 % body fat");
     expect(season).toContain('data-testid="season-block-diet-progress"');
     expect(season).toContain("80.0 kg and 18.0 % body fat");
+    expect(season.indexOf("Aerobic endurance")).toBeLessThan(
+      season.indexOf("Hold weight while building volume."),
+    );
+    expect(season.indexOf("Aerobic endurance")).toBeLessThan(
+      season.indexOf("Diet target by the end of the season:"),
+    );
   });
 
   it("hides diet progress when diet advice is off", () => {
@@ -169,6 +184,56 @@ describe("CoachPlanView calories", () => {
     expect(html).toContain('data-testid="week-session-calories"');
     expect(html).toContain("2200 kcal needed");
     expect(html).toContain("2800 kcal needed");
+  });
+
+  it("puts a week session's calories below its title and before the status box", () => {
+    const html = renderToStaticMarkup(
+      <CoachPlanView
+        pending={noPending}
+        plan={{
+          ...plan,
+          week: {
+            ...plan.week,
+            sessions: plan.week.sessions.map((session, index) => ({
+              ...session,
+              estimatedCaloriesKcal: 2200 + index * 100,
+            })),
+          },
+        }}
+        defaultTab="week"
+        showCalories
+      />,
+    );
+
+    const title = html.indexOf("Mon, Oct 19");
+    const calories = html.indexOf("2200 kcal needed");
+    expect(title).toBeGreaterThan(-1);
+    expect(title).toBeLessThan(calories);
+    expect(calories).toBeLessThan(html.indexOf(">completed<"));
+  });
+
+  it("hides a diet target line when the period has no numeric target", () => {
+    const html = renderToStaticMarkup(
+      <CoachPlanView
+        pending={noPending}
+        plan={{
+          ...plan,
+          block: {
+            ...plan.block,
+            dietProgress: {
+              targetWeightKg: null,
+              targetBodyFatPercent: null,
+              note: "No post-February body-composition target was stated; prioritize rebuilding brevet endurance with adequate fueling.",
+            },
+          },
+        }}
+        defaultTab="block"
+        showCalories
+      />,
+    );
+
+    expect(html).not.toContain("Diet target by the end of the block:");
+    expect(html).not.toContain("No post-February body-composition target");
   });
 
   it("does not show an implausibly low calorie target", () => {

@@ -65,13 +65,6 @@ export function SeasonSection({
           testId="season-rationale"
         />
       </div>
-      {showDiet && season.dietProgress != null && (
-        <DietProgressLine
-          progress={season.dietProgress}
-          period="the season"
-          testId="season-diet-progress"
-        />
-      )}
       <PlanList>
         {season.blocks.map((block, index) => (
           <PlanListItem key={`${block.name}-${block.startDate}`}>
@@ -84,13 +77,6 @@ export function SeasonSection({
               <Bullet />
               {block.weekCount} {block.weekCount === 1 ? "week" : "weeks"}
             </p>
-            {showDiet && block.dietProgress != null && (
-              <DietProgressLine
-                progress={block.dietProgress}
-                period="the block"
-                testId="season-block-diet-progress"
-              />
-            )}
             <FormattedText
               text={block.focus}
               className="text-muted-foreground"
@@ -100,9 +86,23 @@ export function SeasonSection({
               goals={season.goals}
               testId="season-block-goals"
             />
+            {showDiet && block.dietProgress != null && (
+              <DietProgressLine
+                progress={block.dietProgress}
+                period="the block"
+                testId="season-block-diet-progress"
+              />
+            )}
           </PlanListItem>
         ))}
       </PlanList>
+      {showDiet && season.dietProgress != null && (
+        <DietProgressLine
+          progress={season.dietProgress}
+          period="the season"
+          testId="season-diet-progress"
+        />
+      )}
     </Card>
   );
 }
