@@ -148,9 +148,15 @@ it: the season, first block, week, day, and unified update prompts.
 
 ## UI
 
-- The Season tab shows the season-end target and each block's target.
-- The Block tab shows the block-end target and each week's target.
-- The Week tab shows the week-end target.
+- The Season tab shows each block's target at the bottom of that block's entry,
+  and the season-end target at the bottom of the season.
+- The Block tab shows each week's target at the bottom of that week's entry, and
+  the block-end target at the bottom of the block.
+- The Week tab shows the week-end target at the bottom of the week.
+- Targets appear as plain text in their period, not as a separate panel or bold
+  heading, so they stay subordinate to the training outline.
+- A period with no numeric target renders no target line at all, even when its
+  note has content.
 - Targets appear only when diet advice is on, so turning it off hides all diet
   content.
 - The target line shows weight in kilograms and body fat as a percentage, and

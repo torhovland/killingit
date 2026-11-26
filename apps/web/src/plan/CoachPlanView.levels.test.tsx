@@ -107,6 +107,30 @@ describe("CoachPlanView levels", () => {
     expect(season).toContain("border-b");
   });
 
+  it("puts a block week's estimated FTP above its target load", () => {
+    const withWeekFtp: CoachPlan = {
+      ...plan,
+      block: {
+        ...plan.block,
+        weeks: plan.block.weeks.map((week) => ({
+          ...week,
+          estimatedFtpWatts: 250,
+        })),
+      },
+    };
+    const block = renderToStaticMarkup(
+      <CoachPlanView
+        pending={noPending}
+        plan={withWeekFtp}
+        defaultTab="block"
+      />,
+    );
+
+    expect(block.indexOf("Estimated FTP: 250 W")).toBeLessThan(
+      block.indexOf("Target load: Easy"),
+    );
+  });
+
   it("renders the next week and next block after 18:00", () => {
     const nextDates = [
       "2026-10-26",

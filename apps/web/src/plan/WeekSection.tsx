@@ -74,13 +74,6 @@ export function WeekSection({
           className="mt-2 text-base text-muted-foreground"
           testId="week-rationale"
         />
-        {showCalories && week.dietProgress != null && (
-          <DietProgressLine
-            progress={week.dietProgress}
-            period="the week"
-            testId="week-diet-progress"
-          />
-        )}
         <ul className="mt-3 flex flex-col gap-2">
           {week.sessions.map((session) => {
             const calories = plannedCaloriesKcal(session);
@@ -89,11 +82,21 @@ export function WeekSection({
                 key={session.date}
                 className="flex flex-wrap items-baseline justify-between gap-2 border-b pb-2 text-base last:border-b-0 last:pb-0"
               >
-                <span className="font-medium">
-                  {formatPlanDate(session.date)}
-                  <Bullet />
-                  {session.title}
-                </span>
+                <div className="flex flex-col">
+                  <span className="font-medium">
+                    {formatPlanDate(session.date)}
+                    <Bullet />
+                    {session.title}
+                  </span>
+                  {showCalories && calories !== null && (
+                    <span
+                      className="text-sm text-muted-foreground"
+                      data-testid="week-session-calories"
+                    >
+                      {calories} kcal needed
+                    </span>
+                  )}
+                </div>
                 <span className="ml-auto flex flex-wrap items-center justify-end gap-x-3 gap-y-1 text-muted-foreground">
                   {session.type !== "rest" && (
                     <span>
@@ -111,11 +114,6 @@ export function WeekSection({
                     </span>
                   )}
                   <StatusBadge status={session.status} />
-                  {showCalories && calories !== null && (
-                    <span data-testid="week-session-calories">
-                      {calories} kcal needed
-                    </span>
-                  )}
                 </span>
                 {session.trainingLoad !== null &&
                   session.trainingLoad !== undefined && (
@@ -143,6 +141,13 @@ export function WeekSection({
             );
           })}
         </ul>
+        {showCalories && week.dietProgress != null && (
+          <DietProgressLine
+            progress={week.dietProgress}
+            period="the week"
+            testId="week-diet-progress"
+          />
+        )}
       </div>
       {refreshing && (
         <RefreshingOverlay

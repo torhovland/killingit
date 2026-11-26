@@ -87,13 +87,6 @@ export function BlockSection({
             testId="block-rationale"
           />
         </div>
-        {showDiet && block.dietProgress != null && (
-          <DietProgressLine
-            progress={block.dietProgress}
-            period="the block"
-            testId="block-diet-progress"
-          />
-        )}
         <PlanList>
           {block.weeks.map((week) => (
             <PlanListItem key={`${week.number}-${week.startDate}`}>
@@ -101,14 +94,18 @@ export function BlockSection({
               <p className="text-muted-foreground">
                 Week starting {formatPlanDate(week.startDate)}
               </p>
-              <p className="text-muted-foreground">
-                Target load: {week.targetLoad}
-              </p>
               {week.estimatedFtpWatts != null && (
                 <p className="text-muted-foreground">
                   Estimated FTP: {week.estimatedFtpWatts} W
                 </p>
               )}
+              <p className="text-muted-foreground">
+                Target load: {week.targetLoad}
+              </p>
+              <FormattedText
+                text={week.focus}
+                className="text-muted-foreground"
+              />
               {showDiet && week.dietProgress != null && (
                 <DietProgressLine
                   progress={week.dietProgress}
@@ -116,13 +113,16 @@ export function BlockSection({
                   testId="block-week-diet-progress"
                 />
               )}
-              <FormattedText
-                text={week.focus}
-                className="text-muted-foreground"
-              />
             </PlanListItem>
           ))}
         </PlanList>
+        {showDiet && block.dietProgress != null && (
+          <DietProgressLine
+            progress={block.dietProgress}
+            period="the block"
+            testId="block-diet-progress"
+          />
+        )}
       </div>
       {refreshing && (
         <RefreshingOverlay
