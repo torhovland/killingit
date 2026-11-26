@@ -226,12 +226,12 @@ through a disciplined process:
 
 ## Working side effects
 
-- **Verify CI before pushing.** When asked to push changes, first run
+- **Verify CI before pushing.** Before pushing an implementation, run
   `bun run typecheck`, `bun run lint`, `bun run format`, `bun run check:unused`,
   `bun run test` and `bun run check:garmin` locally (or verify the equivalent
   CI checks pass), and confirm they all succeed before pushing.
-- **Make sure CI passes on PRs.** When asked to create or update a PR, make
-  sure CI passes.
+- **Make sure CI passes on PRs.** After opening or updating a PR, make sure CI
+  passes.
 
 ## Development Guidelines
 
