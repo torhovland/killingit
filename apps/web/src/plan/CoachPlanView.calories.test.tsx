@@ -62,8 +62,8 @@ describe("CoachPlanView calories", () => {
     expect(week).toContain("Diet target by the end of the week:");
     expect(week).toContain("81.5 kg and 18.0 % body fat");
     expect(week).toContain("Hold weight through the week.");
-    expect(week.indexOf("Morning Run")).toBeLessThan(
-      week.indexOf("Diet target by the end of the week:"),
+    expect(week.indexOf("Diet target by the end of the week:")).toBeLessThan(
+      week.indexOf("Morning Run"),
     );
 
     const block = renderToStaticMarkup(
@@ -82,8 +82,11 @@ describe("CoachPlanView calories", () => {
     expect(block.indexOf("Aerobic base")).toBeLessThan(
       block.indexOf("Hold weight through the week."),
     );
-    expect(block.indexOf("Week starting")).toBeLessThan(
-      block.indexOf("Diet target by the end of the block:"),
+    expect(block.indexOf("Diet target by the end of the block:")).toBeLessThan(
+      block.indexOf("Establish consistent aerobic volume."),
+    );
+    expect(block.indexOf("Diet target by the end of the block:")).toBeLessThan(
+      block.indexOf("Week starting"),
     );
 
     const season = renderToStaticMarkup(

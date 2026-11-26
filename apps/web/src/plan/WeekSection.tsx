@@ -58,6 +58,7 @@ export function WeekSection({
               thresholds={thresholds}
               testId="week-thresholds"
               inline
+              showLabel={false}
             />
           ) : (
             estimatedFtp != null && (
@@ -74,6 +75,13 @@ export function WeekSection({
           className="mt-2 text-base text-muted-foreground"
           testId="week-rationale"
         />
+        {showCalories && week.dietProgress != null && (
+          <DietProgressLine
+            progress={week.dietProgress}
+            period="the week"
+            testId="week-diet-progress"
+          />
+        )}
         <ul className="mt-3 flex flex-col gap-2">
           {week.sessions.map((session) => {
             const calories = plannedCaloriesKcal(session);
@@ -141,13 +149,6 @@ export function WeekSection({
             );
           })}
         </ul>
-        {showCalories && week.dietProgress != null && (
-          <DietProgressLine
-            progress={week.dietProgress}
-            period="the week"
-            testId="week-diet-progress"
-          />
-        )}
       </div>
       {refreshing && (
         <RefreshingOverlay

@@ -58,6 +58,7 @@ export function BlockSection({
               thresholds={thresholds}
               testId="block-thresholds"
               inline
+              showLabel={false}
             />
           ) : (
             estimatedFtp != null && (
@@ -79,6 +80,13 @@ export function BlockSection({
           goals={goals}
           testId="block-goals"
         />
+        {showDiet && block.dietProgress != null && (
+          <DietProgressLine
+            progress={block.dietProgress}
+            period="the block"
+            testId="block-diet-progress"
+          />
+        )}
         <div className="mt-3 flex flex-col gap-1 text-base">
           <p className="font-medium">Coach's rationale</p>
           <FormattedText
@@ -116,13 +124,6 @@ export function BlockSection({
             </PlanListItem>
           ))}
         </PlanList>
-        {showDiet && block.dietProgress != null && (
-          <DietProgressLine
-            progress={block.dietProgress}
-            period="the block"
-            testId="block-diet-progress"
-          />
-        )}
       </div>
       {refreshing && (
         <RefreshingOverlay

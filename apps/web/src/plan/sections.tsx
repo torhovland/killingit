@@ -48,16 +48,19 @@ export function ThresholdsLine({
   thresholds,
   testId,
   inline = false,
+  showLabel = true,
 }: {
   thresholds: readonly ThresholdSummary[];
   testId: string;
   /** True when the line sits inside an existing paragraph. */
   inline?: boolean;
+  /** Whether to print the `Thresholds` label and its leading separator. */
+  showLabel?: boolean;
 }) {
   const content = (
     <span data-testid={testId}>
-      {inline && <Bullet />}
-      <span className="font-medium">Thresholds</span>
+      {inline && showLabel && <Bullet />}
+      {showLabel && <span className="font-medium">Thresholds</span>}
       {thresholds.map((entry) => (
         <span key={`${entry.sport}:${entry.measure}`}>
           <Bullet />
