@@ -97,6 +97,7 @@ export function SeasonSection({
             />
             <SubGoalList
               subGoals={block.subGoals}
+              goals={season.goals}
               testId="season-block-goals"
             />
           </PlanListItem>

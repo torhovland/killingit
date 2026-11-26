@@ -1,4 +1,8 @@
-import type { BlockPlan, ThresholdSummary } from "@killingit/shared";
+import type {
+  BlockPlan,
+  SeasonGoal,
+  ThresholdSummary,
+} from "@killingit/shared";
 import { Bullet } from "../Bullet";
 import { FormattedText } from "../FormattedText";
 import { Card } from "../components/Card";
@@ -19,6 +23,7 @@ export function BlockSection({
   testId,
   refreshing = false,
   thresholds = [],
+  goals,
   showDiet = false,
 }: {
   block: BlockPlan;
@@ -26,6 +31,7 @@ export function BlockSection({
   testId?: string;
   refreshing?: boolean;
   thresholds?: readonly ThresholdSummary[];
+  goals?: readonly SeasonGoal[] | undefined;
   showDiet?: boolean;
 }) {
   const estimatedFtp = block.estimatedFtpWatts;
@@ -68,7 +74,11 @@ export function BlockSection({
           className="mt-3 text-base text-muted-foreground"
           testId="block-focus"
         />
-        <SubGoalList subGoals={block.subGoals} testId="block-goals" />
+        <SubGoalList
+          subGoals={block.subGoals}
+          goals={goals}
+          testId="block-goals"
+        />
         <div className="mt-3 flex flex-col gap-1 text-base">
           <p className="font-medium">Coach's rationale</p>
           <FormattedText
