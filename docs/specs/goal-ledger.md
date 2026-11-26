@@ -50,7 +50,10 @@ the plan depends on.
    the period of the prior result is enough to anchor it; the coach may not
    refuse because a separate race power was not recorded. A `build` sub-goal
    states the numeric goal-required target, not an interim milestone, and the
-   block's weekly `estimatedFtpWatts` must progress toward it.
+   block's weekly `estimatedFtpWatts` must progress toward it. A goal to
+   complete a stated distance has a concrete finish-time or pace target even
+   when the athlete stated no time; that target is derived from the distance,
+   the event standard and the athlete's demonstrated endurance.
 8. **Load audit.** The coach compares the week's planned hours with the stated
    capacity, sums the sessions' TSS against the target load, states CTL and the
    projected TSB, and treats "completed every session, felt easy" as evidence
@@ -189,7 +192,8 @@ the analysis.
 7. The coach derives the goal-required performance from the input and states the
    current gap; a stated threshold from the prior-result period is enough to
    anchor it. A `build` sub-goal carries the numeric required target and the
-   weekly FTP estimate reaches it.
+   weekly FTP estimate reaches it. A distance-only goal carries a concrete
+   completion time or pace and the longest training ride needed.
 8. The load audit reconciles planned hours and session TSS, and treats completed
    easy sessions as evidence of under-load.
 9. A past race or goal remains in the prompt context, marked `past`; a past trip

@@ -24,7 +24,10 @@ arithmetic, and the stored target load was treated as a baseline.
   comparable result as the anchor, and a stated threshold from the period of
   that result is enough when no separate race power was recorded. A `build`
   sub-goal carries the numeric goal-required target, and the block's weekly FTP
-  or pace estimates must progress toward it.
+  or pace estimates must progress toward it. A distance-only goal has a concrete
+  completion time or pace even when no target time was stated; the coach derives
+  it from the distance, the event standard and the athlete's demonstrated
+  endurance.
 - Add `LOAD_AUDIT_RULES`. The coach sums planned hours against stated capacity,
   sums session TSS against the week target, states CTL and the projected TSB,
   and treats "completed every session, felt easy" as evidence that the stored
