@@ -22,14 +22,12 @@ import {
   formatBenchmarkPrompt,
   REVISE_SEASON_DATE,
   REVISE_WEEK_START,
-  TODAY_BENCHMARK_DATE,
 } from "./promptBenchmarkInput.js";
 import {
   GOAL_STEERING_TODAY,
   GOAL_STEERING_WEEK_START,
 } from "./promptBenchmarkSeasonFixture.js";
 
-const today = formatBenchmarkPrompt(buildBenchmarkPromptMessages("today"));
 const reviseSeason = formatBenchmarkPrompt(
   buildBenchmarkPromptMessages("reviseSeason"),
 );
@@ -39,15 +37,13 @@ const goalSteering = formatBenchmarkPrompt(
 
 describe("benchmark prompts", () => {
   it("builds every prompt from the app's current plan rules", () => {
-    expect(today).toContain(GLOBAL_PROMPT_RULES);
-    expect(today).toContain(PLAN_PROMPT_RULES);
-    expect(today).toContain(promptRuleLiteral("WEEK_OUTLINE_RULES"));
-    expect(today).toContain(promptRuleLiteral("BIKE_WORKOUT_RULES"));
-    expect(today).toContain(TRAINING_LOAD_RULES);
-    expect(today).toContain(DAY_CONTRACT);
-    expect(today).toContain(WEEK_CONTRACT);
     expect(reviseSeason).toContain(GLOBAL_PROMPT_RULES);
     expect(reviseSeason).toContain(PLAN_PROMPT_RULES);
+    expect(reviseSeason).toContain(promptRuleLiteral("WEEK_OUTLINE_RULES"));
+    expect(reviseSeason).toContain(promptRuleLiteral("BIKE_WORKOUT_RULES"));
+    expect(reviseSeason).toContain(TRAINING_LOAD_RULES);
+    expect(reviseSeason).toContain(DAY_CONTRACT);
+    expect(reviseSeason).toContain(WEEK_CONTRACT);
     expect(reviseSeason).toContain(SEASON_BLOCK_RULES);
     expect(goalSteering).toContain(GLOBAL_PROMPT_RULES);
     expect(goalSteering).toContain(PLAN_PROMPT_RULES);
@@ -81,10 +77,7 @@ describe("benchmark prompts", () => {
   });
 
   it("plans the dates the validators check", () => {
-    expect(startOfWeek(TODAY_BENCHMARK_DATE)).toBe(REVISE_WEEK_START);
     expect(startOfWeek(REVISE_SEASON_DATE)).toBe(REVISE_WEEK_START);
-    expect(today).toContain(`Today's date: ${TODAY_BENCHMARK_DATE}`);
-    expect(today).toContain("make sure one session has the date 2026-10-30");
     expect(reviseSeason).toContain(`Today's date: ${REVISE_SEASON_DATE}`);
     expect(reviseSeason).toContain(
       "make sure one session has the date 2026-11-01",
@@ -126,7 +119,6 @@ describe("benchmark prompts", () => {
    * diff.
    */
   it("matches the committed benchmark-input snapshot", () => {
-    expect(today).toMatchSnapshot();
     expect(reviseSeason).toMatchSnapshot();
     expect(goalSteering).toMatchSnapshot();
   });

@@ -122,7 +122,6 @@ export async function recordBenchmarkGrade(
     input.ability ??
     abilityGrade({
       score: input.score,
-      categories: input.categories,
       failed: input.failed,
     });
   const speed = speedGrade(input.timeMs);

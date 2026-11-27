@@ -34,7 +34,6 @@ function gradesFor(
   return {
     ability: abilityGrade({
       score: score?.score ?? null,
-      categories: score?.components ?? null,
       failed: score?.failed ?? true,
     }),
     speed: speedGrade(result === undefined ? null : gradedPromptTimeMs(result)),
@@ -473,12 +472,11 @@ export async function runPromptBenchmarkReportStage(): Promise<void> {
             )}; a later run replaces an earlier result for the same model. `
         : ""
     }
-    Each model received three prompts built by the app's own prompt builders,
-    in three separate calls. The today prompt asks for today's session,
-    tomorrow's session and the current week on 2026-10-30. The revision prompt
-    asks for a refreshed season, current block, week and day after the athlete
-    set the Atlas Mountain Race on 28 February 2027 as the next goal. The goal
-    steering prompt is the Sunday 2027-07-04 refresh from the full-season test:
+    Each model received two prompts built by the app's own prompt builders, in
+    two separate calls. The revision prompt asks for a refreshed season,
+    current block, week and day after the athlete set the Atlas Mountain Race
+    on 28 February 2027 as the next goal. The goal steering prompt is the
+    Sunday 2027-07-04 refresh from the full-season test:
     a compliant athlete has completed every session, says they all felt easy,
     but is still at about 247 W FTP and a 31 CTL with seven weeks to a 3:10
     gravel race, and the coach must decide whether the goal is realistic, how to
@@ -509,19 +507,16 @@ export async function runPromptBenchmarkReportStage(): Promise<void> {
     for its prompt, not by a code pattern matcher. Each prompt is scored out of
     12.5 across contract compliance (1.5), fidelity (2.0), design (3.0),
     rationale (2.0), grounding (2.0), and extra, useful detail (2.0). The
-    combined score is the mean of all prompt scores; each component keeps the
-    weaker value across them, so a failing component in any prompt caps the
-    grade at C. Time and cost are the sum of every prompt run, including
-    retries, while the speed and cost grades use the two core app prompts so
-    the goal-steering call does not make a model look slower or more expensive
-    than the app sees it. Judge cost:
+    combined score is the mean of the revision and goal scores; each component
+    keeps the weaker value across them. Time and cost in the table are the sum
+    of every prompt run, including retries, while the speed and cost grades use
+    the revision prompt so the goal-steering call does not make a model look
+    slower or more expensive than the app sees it. Judge cost:
     ${judgeModel ? formatCost(judgeCost) : "—"}. Ability, speed and cost grades
-    use the same bands as the app catalog; a model stopped at the 10-minute
-    speed-F limit is shown as ability <code>?</code>. The goal-steering prompt
-    is a newer and harder task, so the three-prompt mean sits below the
-    two-prompt distribution the current ability bands were calibrated on. Treat
-    the raw score and the relative order as the signal until a full catalog run
-    recalibrates the bands.
+    use the same bands as the app catalog; a failed run is <code>F</code> and a
+    model stopped at the 10-minute speed-F limit is shown as ability
+    <code>?</code>. Ability bands: A+ at least 10.5, A at least 10.0, B at
+    least 9.5, C at least 9.0, D at least 8.5, E above zero.
   </div>
 
   <div class="summary-grid">

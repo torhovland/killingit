@@ -13,46 +13,27 @@ import {
 } from "./modelCatalogPricing.js";
 
 describe("abilityGrade", () => {
-  const categories = {
-    contract: 1.5,
-    fidelity: 2,
-    design: 3,
-    rationale: 2,
-    grounding: 2,
-    detail: 2,
-  };
-
-  it("maps score bands to letter grades", () => {
-    expect(abilityGrade({ score: 10.6, categories })).toBe("A+");
-    expect(abilityGrade({ score: 10.2, categories })).toBe("A");
-    expect(abilityGrade({ score: 9.8, categories })).toBe("B");
-    expect(abilityGrade({ score: 9.4, categories })).toBe("C");
-    expect(abilityGrade({ score: 9.0, categories })).toBe("D");
-    expect(abilityGrade({ score: 8.9, categories })).toBe("E");
-    expect(abilityGrade({ score: 7.4, categories })).toBe("E");
+  it("maps the revision-plus-goal score bands to letter grades", () => {
+    expect(abilityGrade({ score: 10.6 })).toBe("A+");
+    expect(abilityGrade({ score: 10.5 })).toBe("A+");
+    expect(abilityGrade({ score: 10.4 })).toBe("A");
+    expect(abilityGrade({ score: 10.0 })).toBe("A");
+    expect(abilityGrade({ score: 9.9 })).toBe("B");
+    expect(abilityGrade({ score: 9.5 })).toBe("B");
+    expect(abilityGrade({ score: 9.4 })).toBe("C");
+    expect(abilityGrade({ score: 9.0 })).toBe("C");
+    expect(abilityGrade({ score: 8.9 })).toBe("D");
+    expect(abilityGrade({ score: 8.5 })).toBe("D");
+    expect(abilityGrade({ score: 8.4 })).toBe("E");
+    expect(abilityGrade({ score: 0.1 })).toBe("E");
   });
 
   it("grades a failed run as F", () => {
-    expect(abilityGrade({ score: 12, categories, failed: true })).toBe("F");
-  });
-
-  it("caps a strong run at C when any category is below half", () => {
-    expect(
-      abilityGrade({
-        score: 12,
-        categories: { ...categories, detail: 0.9 },
-      }),
-    ).toBe("C");
-    expect(
-      abilityGrade({
-        score: 9.2,
-        categories: { ...categories, detail: 0.9 },
-      }),
-    ).toBe("D");
+    expect(abilityGrade({ score: 12, failed: true })).toBe("F");
   });
 
   it("does not grade an unbenchmarked model", () => {
-    expect(abilityGrade({ score: null, categories: null })).toBe("F");
+    expect(abilityGrade({ score: null })).toBe("F");
   });
 });
 

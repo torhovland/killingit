@@ -50,31 +50,6 @@ const ZERO_COMPONENTS = {
   detail: 0,
 };
 
-const TODAY_RUBRIC = `You are a strict, expert endurance-coaching judge. You evaluate another model's answer to a coaching prompt. Do not answer the coaching prompt yourself and do not produce a training plan. Only evaluate the candidate JSON.
-
-You will receive the exact original prompt given to the candidate and the candidate's JSON response. Infer the athlete's context, constraints, current plan and the required session from the original prompt. Do not assume facts that are not in it.
-
-Score the candidate on these six components. Be strict but fair. Judge the coaching content, not writing style alone.
-
-1. contract (0-1.5): valid JSON with the top-level keys today, tomorrow, week, diet and bodyMetrics, and optionally coachQuestion and modelsRemarks. Today and tomorrow are complete day objects using the contract's field names and types; week has exactly seven dated sessions as short outlines; no prose around the JSON, no code fence. Extra fields inside an object are a minor issue, not a failure.
-
-2. fidelity (0-2.0): the candidate matches the dates, statuses, session types, durations, intensities, indoor/outdoor flags, bikeWorkout, FTP and TSS stated in the original prompt and the current plan. Today must be 2026-10-30 and one of the week's sessions, tomorrow must be 2026-10-31, and the week must run from 2026-10-26 to 2026-11-01. Past days keep what the athlete actually did. The weekday sessions stay inside the athlete's after-work window and out of the dark, as the weekly note says. Marking today completed when no activity is recorded, inventing an activity, or replacing a planned session with an unrelated one loses points.
-
-3. design (0-3.0): a specific, safe, well-sequenced session and week that fit the athlete's goals, experience, equipment, recent training and the current plan. Reward sensible exercise selection, sets and reps, rest, progression and safety. Penalize vague, generic or unsafe prescriptions. Do not require any particular exercise.
-
-4. rationale (0-2.0): the day's rationale and optionalRationale explain why this session is right for the athlete now and what is lost by skipping. Reward specific, grounded reasoning tied to the athlete's goals and current plan. Penalize empty, generic or purely motivational text.
-
-5. grounding (0-2.0): uses the athlete's actual profile, recent activities, comments, constraints and current plan; makes no invented claims; does not hallucinate a completed activity; respects the athlete's time, equipment, weather and daylight limits.
-
-6. detail (0-2.0): extra, useful execution detail in the description. Reward load progression or RPE/rep-in-reserve guidance, technique cues, stop conditions, fallbacks or alternatives for missing equipment or pain, explicit assumptions for unknown loads, exercise-specific notes, and success criteria. Do not reward padding, repetition or irrelevant text. A concise plan can earn high detail if every extra sentence helps execution.
-
-Return ONLY a JSON object in this exact shape:
-{"contract": 0.0, "fidelity": 0.0, "design": 0.0, "rationale": 0.0, "grounding": 0.0, "detail": 0.0, "score": 0.0, "judgment": "2-4 specific sentences"}
-
-The score is the sum of the six components (maximum 12.5), rounded to one decimal. The judgment should say what was strong and what was weak in this specific candidate.
-
-Return strict JSON. Inside the judgment string, do not use quotation marks of any kind (no double quotes and no single quotes). Do not use raw newlines inside the judgment. Refer to field names and phrases without quoting them.`;
-
 const REVISE_SEASON_RUBRIC = `You are a strict, expert endurance-coaching judge. You evaluate another model's answer to a coaching prompt. Do not answer the coaching prompt yourself and do not produce a training plan. Only evaluate the candidate JSON.
 
 You will receive the exact original prompt given to the candidate and the candidate's JSON response. The original prompt asks the model to refresh an existing season plan after the athlete's stated goal changed: the next race is the Atlas Mountain Race on 28 February 2027, followed by Paris-Brest-Paris in August 2027, with a randonneur brevet series in between whose first event is a 200 km brevet in April 2027. The revision request says the season and the current block must be refreshed in place, block 1 must start on 2026-10-19, blocks that ended before today must stay as supplied, the remainder of the season must be re-planned as contiguous blocks that cover the season, the current week and today must be revised coherently, tomorrow, next week and next block must stay null because they were supplied as null, and the coaching survey adjustments must be applied.
@@ -135,7 +110,6 @@ The score is the sum of the six components (maximum 12.5), rounded to one decima
 Return strict JSON. Inside the judgment string, do not use quotation marks of any kind (no double quotes and no single quotes). Do not use raw newlines inside the judgment. Refer to field names and phrases without quoting them.`;
 
 const PROMPT_RUBRICS = {
-  today: TODAY_RUBRIC,
   reviseSeason: REVISE_SEASON_RUBRIC,
   goalSteering: GOAL_STEERING_RUBRIC,
 } as const;
@@ -414,7 +388,7 @@ export async function runPromptBenchmarkJudgeStage(): Promise<void> {
       completed += 1;
       logPromptBenchmark(
         `[${completed}/${results.length}] ${result.id} ${entry.score.toFixed(1)} ` +
-          `(today ${promptJudges.today.score.toFixed(1)} · revision ${promptJudges.reviseSeason.score.toFixed(1)} · goal ${promptJudges.goalSteering.score.toFixed(1)}) ` +
+          `(revision ${promptJudges.reviseSeason.score.toFixed(1)} · goal ${promptJudges.goalSteering.score.toFixed(1)}) ` +
           `${entry.gates?.failures.length ? `gates failed: ${entry.gates.failures.join("; ")} ` : ""}` +
           `${((performance.now() - started) / 1000).toFixed(1)}s judge`,
       );

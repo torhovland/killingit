@@ -7,7 +7,6 @@ import {
   REVISE_SEASON_DATE,
   REVISE_SEASON_TOP_LEVEL_KEYS,
   REVISE_WEEK_START,
-  TODAY_BENCHMARK_DATE,
   type BenchmarkPromptId,
 } from "./promptBenchmarkInput.js";
 import {
@@ -320,66 +319,6 @@ function checkTopLevelKeys(
   ) {
     errors.push("modelsRemarks must be a string or null");
   }
-}
-
-/**
- * Checks the daily-update response: today's session, tomorrow's session, the
- * revised week and the diet/body inputs the app stores with it.
- */
-function validateTodayPlan(plan: unknown): string[] {
-  if (!isRecord(plan)) return ["response is not an object"];
-  const errors: string[] = [];
-  checkTopLevelKeys(
-    plan,
-    ["today", "tomorrow", "week", "bodyMetrics"],
-    ["diet", "coachQuestion", "modelsRemarks"],
-    errors,
-  );
-  const today = plan.today;
-  if (!isRecord(today)) {
-    errors.push("missing today object");
-  } else {
-    checkDaySession(today, errors, "today:");
-    if (today.date !== TODAY_BENCHMARK_DATE) {
-      errors.push(`today date must be ${TODAY_BENCHMARK_DATE}`);
-    }
-  }
-  const tomorrow = plan.tomorrow;
-  if (tomorrow !== null) {
-    if (!isRecord(tomorrow)) {
-      errors.push("tomorrow must be an object or null");
-    } else {
-      checkDaySession(tomorrow, errors, "tomorrow:");
-      if (tomorrow.date !== addOneDay(TODAY_BENCHMARK_DATE)) {
-        errors.push(`tomorrow date must be ${addOneDay(TODAY_BENCHMARK_DATE)}`);
-      }
-    }
-  }
-  const week = plan.week;
-  if (!isRecord(week)) {
-    errors.push("missing week object");
-  } else {
-    checkWeekPlan(week, REVISE_WEEK_START, errors, "week:");
-    if (
-      Array.isArray(week.sessions) &&
-      !week.sessions.some(
-        (session) => isRecord(session) && session.date === TODAY_BENCHMARK_DATE,
-      )
-    ) {
-      errors.push("today must be one of the week's sessions");
-    }
-  }
-  if (!Array.isArray(plan.bodyMetrics)) {
-    errors.push("bodyMetrics must be an array");
-  }
-  return errors;
-}
-
-/** The next calendar day, used for the tomorrow date check. */
-function addOneDay(date: string): string {
-  const value = new Date(`${date}T00:00:00Z`);
-  value.setUTCDate(value.getUTCDate() + 1);
-  return value.toISOString().slice(0, 10);
 }
 
 /** Checks the season's structured goal ledger. */
@@ -874,8 +813,6 @@ export function validatePromptPlan(
   plan: unknown,
 ): string[] {
   switch (prompt) {
-    case "today":
-      return validateTodayPlan(plan);
     case "reviseSeason":
       return validateReviseSeasonPlan(plan);
     case "goalSteering":

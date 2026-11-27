@@ -37,28 +37,28 @@ const ATTEMPT: PromptAttempt = {
   error: null,
 };
 
-const TODAY_RESULT: PromptRunResult = {
-  prompt: "today",
+const REVISION_RESULT: PromptRunResult = {
+  prompt: "reviseSeason",
   attempts: [ATTEMPT],
   retryNeeded: false,
   ok: true,
   totalTimeMs: 1000,
   totalCostUsd: 0.01,
-  plan: { today: { date: "2026-10-30" } },
+  plan: { season: { goal: "Atlas" } },
   validationErrors: [],
 };
 
-const REVISION_RESULT: PromptRunResult = {
-  ...TODAY_RESULT,
-  prompt: "reviseSeason",
-  plan: { season: { goal: "Atlas" } },
+const GOAL_RESULT: PromptRunResult = {
+  ...REVISION_RESULT,
+  prompt: "goalSteering",
+  plan: { block: { name: "Gravel build" } },
 };
 
 const MODEL_RESULT: PromptModelResult = {
   id: "example/model",
   name: "Example",
   requestedAt: "2026-11-01T13:54:19.481Z",
-  prompts: { today: TODAY_RESULT, reviseSeason: REVISION_RESULT },
+  prompts: { reviseSeason: REVISION_RESULT, goalSteering: GOAL_RESULT },
   ok: true,
   totalTimeMs: 2000,
   totalCostUsd: 0.02,
@@ -90,7 +90,7 @@ const JUDGE_SCORE = {
   id: "example/model",
   failed: false,
   gates: GATES,
-  prompts: { today: JUDGE, reviseSeason: JUDGE },
+  prompts: { reviseSeason: JUDGE, goalSteering: JUDGE },
 };
 
 /** A run file schema and one valid value for it. */
@@ -185,11 +185,11 @@ describe("readJsonFile", () => {
   it("accepts a run written before the goal-steering prompt existed", async () => {
     const older: Record<string, unknown> = {
       ...MODEL_RESULT,
-      prompts: { today: TODAY_RESULT, reviseSeason: REVISION_RESULT },
+      prompts: { reviseSeason: REVISION_RESULT },
     };
     const path = await writeFixture(older);
     const parsed = await readJsonFile(path, promptModelResultSchema);
-    expect(Object.keys(parsed.prompts)).toEqual(["today", "reviseSeason"]);
+    expect(Object.keys(parsed.prompts)).toEqual(["reviseSeason"]);
   });
 
   it("names the file when the JSON itself is invalid", async () => {
@@ -237,7 +237,7 @@ describe("readJsonEntries", () => {
     const partial: Record<string, unknown> = {
       ...MODEL_RESULT,
       id: "partial/model",
-      prompts: { today: TODAY_RESULT },
+      prompts: { reviseSeason: REVISION_RESULT },
     };
     const path = await writeFixture([MODEL_RESULT, oldFormat, partial]);
     const entries = await readJsonEntries(path, promptModelResultSchema);
@@ -269,12 +269,14 @@ describe("stored files from an older run", () => {
     const path = await writeFixture({
       ...MODEL_RESULT,
       prompts: {
-        today: { ...TODAY_RESULT, attempts: [attempt] },
-        reviseSeason: REVISION_RESULT,
+        reviseSeason: { ...REVISION_RESULT, attempts: [attempt] },
+        goalSteering: GOAL_RESULT,
       },
     });
     const parsed = await readJsonFile(path, promptModelResultSchema);
-    expect(parsed.prompts.today?.attempts[0]?.usage).toEqual(attempt.usage);
+    expect(parsed.prompts.reviseSeason?.attempts[0]?.usage).toEqual(
+      attempt.usage,
+    );
   });
 
   it("accepts a judge score written before the Atlas-question gate", async () => {

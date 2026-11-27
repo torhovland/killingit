@@ -14,9 +14,8 @@ builders:
 
 - the **plan comparison** runs the real four-level plan generation and its
   new-week refresh for a list of models; and
-- the **three-prompt catalog benchmark** sends the daily-update prompt, the
-  season-revision prompt and the goal-steering prompt to every catalog model
-  and grades them.
+- the **two-prompt catalog benchmark** sends the season-revision prompt and the
+  goal-steering prompt to every catalog model and grades them.
 
 The first model in a plan-comparison run is the benchmark; every other model is
 compared with its cost, time and plan quality. The catalog benchmark fills the
@@ -45,7 +44,7 @@ model catalog's ability, speed and cost grades.
    `PLAN_MAX_TOKENS = 16_384`, with fallback attempts up to 32,768 and a
    4,096-token compatibility attempt for providers that reject a large
    `max_tokens`.
-6. A three-prompt mode with explicit `run`, `judge`, `finalize`, `shortlist`,
+6. A two-prompt mode with explicit `run`, `judge`, `finalize`, `shortlist`,
    `sync-db` and `report` stages. The run stage calls every prompt through the
    app's `LlmProvider`, judging is an optional stage, and the models are selected
    from the catalog or the environment exactly as before. Its prompt builders,
@@ -204,10 +203,10 @@ rewards a candid read of the gap plus a materially more ambitious safe block
 rather than another timid week. It is the prompt that distinguishes a model
 which steers from one that merely repeats the existing plan.
 
-Ability is the mean of all three judged prompt scores. Speed and cost remain the
-sum of the two core app prompts, so the extra ability call does not make a model
-look slower or more expensive than the app sees it. The speed-F limit still
-stops on the core prompts; a model that reaches it is not asked the
+Ability is the mean of the season-revision and goal-steering scores. Speed and
+cost use the season-revision prompt alone, so the extra ability call does not
+make a model look slower or more expensive than the app sees it. The speed-F
+limit stops on the revision prompt; a model that reaches it is not asked the
 goal-steering prompt and stays ungraded.
 
 The judge moves by more than a point between single passes, which is wider than
@@ -217,11 +216,10 @@ prompt (the note comes from the pass closest to the mean), and a stronger
 a small comparison. The default stays one Haiku pass because a full-catalog run
 multiplies the judge spend by the number of passes.
 
-The current ability bands were calibrated on the two core prompts. The
-goal-steering task is newer and harder, so the three-prompt mean sits lower and
-the absolute grade is not comparable until a full catalog run recalibrates the
-bands. A run that adds the third prompt should compare raw scores and relative
-order, and should not sync the catalog on the old bands.
+Ability bands are A+ at least 10.5, A at least 10.0, B at least 9.5, C at least
+9.0, D at least 8.5, and E above zero. A failed run is F. The Today prompt was
+removed because it did not separate models beyond the revision and goal prompts;
+ability now reflects only the two prompts that do.
 
 `run` writes `models.json`, `raw/*.json` and `results.json`; `judge` is optional
 and writes `judge-scores.json`; `finalize` recovers responses rejected only for

@@ -18,20 +18,11 @@ import { createOpenRouterProvider } from "./openrouter.js";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
-/** Category maxima used by the Haiku judge. A category below half is an F. */
-const BENCHMARK_CATEGORY_MAXIMA = {
-  contract: 1.5,
-  fidelity: 2,
-  design: 3,
-  rationale: 2,
-  grounding: 2,
-  detail: 2,
-} as const;
-
 /**
- * Cost bands for the two-prompt benchmark. The cuts are calibrated so the
+ * Cost bands for the revision-prompt benchmark. The cuts are calibrated so the
  * measured cost grades roughly match the list-price grades: about 58% exact
- * and 88% within one grade on the latest run, with the same overall shape.
+ * and 88% within one grade on the latest two-prompt run, with the same overall
+ * shape.
  */
 const COST_GRADE_LIMITS = {
   aPlus: 0.015,
@@ -72,10 +63,9 @@ export function costGrade(costUsd: number | null | undefined): LlmModelGrade {
 }
 
 /**
- * Speed is the sum of both benchmark prompts, including retries. The cuts were
- * recalibrated from the 2026-11-24 runs: a full two-prompt answer takes about
- * 166 s at the median, so the old 45 s A+ cut captured only the smallest free
- * models and the 1,200 s F limit sat far beyond the app's own 300 s budget.
+ * Speed is the revision prompt, including retries. The cuts are unchanged from
+ * the two-prompt calibration, so a model that was graded on a pair of calls now
+ * looks faster on the single graded call.
  */
 export function speedGrade(timeMs: number | null | undefined): LlmModelGrade {
   if (timeMs === null || timeMs === undefined) return "?";
@@ -90,42 +80,26 @@ export function speedGrade(timeMs: number | null | undefined): LlmModelGrade {
 
 export interface AbilityInput {
   score: number | null | undefined;
-  categories?: Record<string, number> | null;
   failed?: boolean;
 }
 
 /**
- * Ability is the benchmark score band. A failed or unscoreable run is F.
+ * Ability is the mean of the season-revision and goal-steering judge scores.
+ * A failed or unscoreable run is F; every successful run gets a letter band.
  *
- * One rubric category below half its maximum caps the grade at C instead of
- * failing the model outright. The old hard F turned an 8.8 plan with one weak
- * fidelity score into an ungraded-looking failure, which is why 44 of the 132
- * judged entries in the 2026-11-24 runs were F for a single component.
- *
- * Score bands: A+ >= 10.6, A >= 10.2, B >= 9.8, C >= 9.4, D >= 9.0, E > 0.
+ * Score bands: A+ >= 10.5, A >= 10.0, B >= 9.5, C >= 9.0, D >= 8.5, E > 0.
  */
 export function abilityGrade({
   score,
-  categories,
   failed = false,
 }: AbilityInput): LlmModelGrade {
   if (failed || score === null || score === undefined || score <= 0) return "F";
-  if (!categories) return "F";
-  let grade: LlmModelGrade;
-  if (score >= 10.6) grade = "A+";
-  else if (score >= 10.2) grade = "A";
-  else if (score >= 9.8) grade = "B";
-  else if (score >= 9.4) grade = "C";
-  else if (score >= 9.0) grade = "D";
-  else grade = "E";
-  const weakCategory = Object.entries(BENCHMARK_CATEGORY_MAXIMA).some(
-    ([key, maximum]) => {
-      const value = categories[key];
-      return value === undefined || value < maximum / 2;
-    },
-  );
-  if (weakCategory && GRADE_ORDER[grade] > GRADE_ORDER.C) return "C";
-  return grade;
+  if (score >= 10.5) return "A+";
+  if (score >= 10.0) return "A";
+  if (score >= 9.5) return "B";
+  if (score >= 9.0) return "C";
+  if (score >= 8.5) return "D";
+  return "E";
 }
 
 export function isDiscouraged(

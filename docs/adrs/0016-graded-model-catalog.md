@@ -35,3 +35,13 @@ a Settings-page instruction if it is retired or discouraged.
 - New models remain `?` until the benchmark runs; the documented pending-only
   benchmark command fills those gaps.
 - The catalog adds one background network call per day and two small tables.
+
+## Amendment (2026-11-28)
+
+The daily-update prompt was removed from the catalog benchmark because it did
+not separate models beyond the season revision and goal steering. The benchmark
+now runs two prompts. Ability is the mean of those two scores, with bands A+ at
+least 10.5, A at least 10.0, B at least 9.5, C at least 9.0, D at least 8.5, E
+above zero and F for a failed run. Speed and cost are measured on the revision
+prompt alone. The per-category cap was removed so a weak component cannot
+override the score band.
