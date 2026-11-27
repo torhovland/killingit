@@ -15,14 +15,32 @@ describe("CoachPlanView calories", () => {
           targetBodyFatPercent: 15,
           note: "Reach race weight by the season end.",
         },
-        blocks: plan.season.blocks.map((block) => ({
-          ...block,
-          dietProgress: {
-            targetWeightKg: 80,
-            targetBodyFatPercent: 18,
-            note: "Hold weight while building volume.",
+        blocks: [
+          {
+            name: "Base",
+            focus: "Aerobic endurance",
+            startDate: "2026-10-21",
+            endDate: "2026-12-01",
+            weekCount: 6,
+            dietProgress: {
+              targetWeightKg: 80,
+              targetBodyFatPercent: 18,
+              note: "Hold weight while building volume.",
+            },
           },
-        })),
+          {
+            name: "Build",
+            focus: "Aerobic endurance",
+            startDate: "2026-12-02",
+            endDate: "2027-04-01",
+            weekCount: 17,
+            dietProgress: {
+              targetWeightKg: 79,
+              targetBodyFatPercent: 16,
+              note: "Shed the last kilos before the race.",
+            },
+          },
+        ],
       },
       block: {
         ...plan.block,
@@ -104,13 +122,52 @@ describe("CoachPlanView calories", () => {
     expect(season).toContain("78.0 kg");
     expect(season).toContain("15.0 % body fat");
     expect(season).toContain('data-testid="season-block-diet-progress"');
+    expect(season).toContain("Diet target by the end of the block");
     expect(season).toContain("80.0 kg");
+    expect(season).toContain("Hold weight while building volume.");
+    expect(season).not.toContain("79.0 kg");
+    expect(season).not.toContain("Shed the last kilos before the race.");
     expect(season.indexOf("Aerobic endurance")).toBeLessThan(
       season.indexOf("Hold weight while building volume."),
     );
-    expect(season.indexOf("Aerobic endurance")).toBeLessThan(
+    expect(season.indexOf("Hold weight while building volume.")).toBeLessThan(
       season.indexOf("Diet target by the end of the season"),
     );
+  });
+
+  it("keeps the last block's target when the season shows none", () => {
+    const html = renderToStaticMarkup(
+      <CoachPlanView
+        pending={noPending}
+        plan={{
+          ...plan,
+          season: {
+            ...plan.season,
+            dietProgress: null,
+            blocks: [
+              {
+                name: "Base",
+                focus: "Aerobic endurance",
+                startDate: "2026-10-21",
+                endDate: plan.season.endDate,
+                weekCount: 6,
+                dietProgress: {
+                  targetWeightKg: 78,
+                  targetBodyFatPercent: 15,
+                  note: "Reach race weight.",
+                },
+              },
+            ],
+          },
+        }}
+        defaultTab="season"
+        showCalories
+      />,
+    );
+
+    expect(html).toContain('data-testid="season-block-diet-progress"');
+    expect(html).toContain("Diet target by the end of the block");
+    expect(html).toContain("78.0 kg");
   });
 
   it("hides diet progress when diet advice is off", () => {

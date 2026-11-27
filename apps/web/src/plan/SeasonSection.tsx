@@ -6,6 +6,7 @@ import { CoachQuote } from "../components/CoachQuote";
 import { formatPlanDate } from "./formatPlanDate";
 import {
   DietProgressLine,
+  hasDietTarget,
   PlanList,
   PlanListItem,
   SeasonGoalList,
@@ -65,35 +66,46 @@ export function SeasonSection({
         className="mt-3"
       />
       <PlanList>
-        {season.blocks.map((block, index) => (
-          <PlanListItem key={`${block.name}-${block.startDate}`}>
-            <p className="text-lg font-medium">
-              {index + 1}. {block.name}
-            </p>
-            <p className="text-muted-foreground">
-              {formatPlanDate(block.startDate)} →{" "}
-              {formatPlanDate(block.endDate)}
-              <Bullet />
-              {block.weekCount} {block.weekCount === 1 ? "week" : "weeks"}
-            </p>
-            <FormattedText
-              text={block.focus}
-              className="text-muted-foreground"
-            />
-            <SubGoalList
-              subGoals={block.subGoals}
-              goals={season.goals}
-              testId="season-block-goals"
-            />
-            {showDiet && block.dietProgress != null && (
-              <DietProgressLine
-                progress={block.dietProgress}
-                period="the block"
-                testId="season-block-diet-progress"
+        {season.blocks.map((block, index) => {
+          // The last block can end on the season's last day, where its target
+          // would restate the season target below it.
+          const repeatsSeasonTarget =
+            index === season.blocks.length - 1 &&
+            block.endDate === season.endDate &&
+            season.dietProgress != null &&
+            hasDietTarget(season.dietProgress);
+          return (
+            <PlanListItem key={`${block.name}-${block.startDate}`}>
+              <p className="text-lg font-medium">
+                {index + 1}. {block.name}
+              </p>
+              <p className="text-muted-foreground">
+                {formatPlanDate(block.startDate)} →{" "}
+                {formatPlanDate(block.endDate)}
+                <Bullet />
+                {block.weekCount} {block.weekCount === 1 ? "week" : "weeks"}
+              </p>
+              <FormattedText
+                text={block.focus}
+                className="text-muted-foreground"
               />
-            )}
-          </PlanListItem>
-        ))}
+              <SubGoalList
+                subGoals={block.subGoals}
+                goals={season.goals}
+                testId="season-block-goals"
+              />
+              {showDiet &&
+                block.dietProgress != null &&
+                !repeatsSeasonTarget && (
+                  <DietProgressLine
+                    progress={block.dietProgress}
+                    period="the block"
+                    testId="season-block-diet-progress"
+                  />
+                )}
+            </PlanListItem>
+          );
+        })}
       </PlanList>
       {showDiet && season.dietProgress != null && (
         <DietProgressLine
