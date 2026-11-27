@@ -421,6 +421,13 @@
       "when": 1795795108196,
       "tag": "0059_grade_benchmark_models_2026_11_27",
       "breakpoints": true
+    },
+    {
+      "idx": 60,
+      "version": "7",
+      "when": 1795822905536,
+      "tag": "0060_regrade_revision_goal_2026_11_28",
+      "breakpoints": true
     }
   ]
 }
