@@ -149,7 +149,9 @@ it: the season, first block, week, day, and unified update prompts.
 ## UI
 
 - The Season tab shows each block's target at the bottom of that block's entry,
-  and the season-end target at the bottom of the season.
+  and the season-end target at the bottom of the season. When the last block ends
+  on the season's last day and the season target is shown, the last block's
+  target is omitted so the same target is not printed twice.
 - The Block tab shows each week's target at the bottom of that week's entry, and
   the block-end target above the coach's rationale so it is read with the block
   summary rather than after its weeks.

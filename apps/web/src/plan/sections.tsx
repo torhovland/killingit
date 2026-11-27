@@ -75,6 +75,13 @@ export function ThresholdsLine({
   return inline ? content : <p className="text-base">{content}</p>;
 }
 
+/** Whether the coach set a numeric body-composition target for the period. */
+export function hasDietTarget(progress: DietProgress): boolean {
+  return (
+    progress.targetWeightKg !== null || progress.targetBodyFatPercent !== null
+  );
+}
+
 /** The coach's body-composition target for the end of a plan period. */
 export function DietProgressLine({
   progress,
@@ -86,10 +93,7 @@ export function DietProgressLine({
   period: string;
   testId: string;
 }) {
-  if (
-    progress.targetWeightKg === null &&
-    progress.targetBodyFatPercent === null
-  ) {
+  if (!hasDietTarget(progress)) {
     return null;
   }
   const targets: string[] = [];
