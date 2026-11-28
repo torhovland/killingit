@@ -188,9 +188,9 @@ describe("catalogIdsToRemove", () => {
           { id: "b/model", aliasTargetSlug: null },
           { id: "~b/latest", aliasTargetSlug: "b/model" },
         ],
-        new Set(["a/model"]),
+        new Set(["a/model", "~a/latest"]),
       ),
-    ).toEqual(["b/model", "~gone/latest", "~b/latest"]);
+    ).toEqual(["~gone/latest", "b/model", "~b/latest"]);
   });
 
   it("removes a meta model with no target", () => {
