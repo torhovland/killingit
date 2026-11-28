@@ -49,7 +49,7 @@ Environment:
   RETRY_FAILED_JUDGES=1        Re-judge unusable judge responses.
   SKIP_FAILED=1                Leave unfinished models at their previous grade.
   SKIP_REFRESH=1               Do not refresh the catalog before recording.
-  JUDGE_MODEL=<id>             Judge model (default anthropic/claude-haiku-5.5).
+  JUDGE_MODEL=<id>             Judge model (default openai/gpt-6.1-terra).
   JUDGE_PASSES=<n>             Judge passes to average (default 1; use 3 for a
                                stable small comparison).
   MAX_TOKENS_REVISE, TIMEOUT_MS, LIMIT

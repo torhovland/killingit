@@ -18,6 +18,15 @@ interface CatalogIdentity {
   completionPricePerMillion: number | null;
 }
 
+/** IDs the provider no longer lists; an empty incoming list removes nothing. */
+export function catalogIdsToRemove(
+  existingIds: readonly string[],
+  incomingIds: ReadonlySet<string>,
+): string[] {
+  if (incomingIds.size === 0) return [];
+  return existingIds.filter((id) => !incomingIds.has(id));
+}
+
 /** A new catalog row: ungraded, with a price grade until the benchmark runs. */
 export interface NewCatalogModel extends CatalogIdentity {
   id: string;

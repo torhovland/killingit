@@ -114,15 +114,16 @@ list in the background.
   they call the concrete target and force-copy its result afterwards.
 - New models are inserted with `retired=false`, `discouraged=false`,
   `ability=?`, `speed=?`, and the price grade from their list prices.
-- Models missing from OpenRouter are marked retired.
+- Models missing from OpenRouter are deleted from the catalog. The `retired`
+  flag remains for rows marked by earlier versions or by hand.
 - OpenRouter's batch-only `:batch` routes are never inserted, and any existing
   `:batch` rows are deleted during the refresh. They are asynchronous and
   cannot serve normal chat requests.
 - Existing benchmark grades are never overwritten by a refresh.
 
 A refresh runs in three steps: fetch OpenRouter's list, reconcile the stored
-rows (insert, update, retire), then copy benchmark data, recompute `discouraged`
-and clear the sync error. The per-model insert-or-update decision is the pure
+rows (insert, update, delete), then copy benchmark data, recompute
+`discouraged` and clear the sync error. The per-model insert-or-update decision is the pure
 `catalogUpdateFor` in `apps/api/src/llm/modelCatalogUpdate.ts`, unit-tested
 without a database; `storeCatalogModels` only performs its writes, and every row
 written by one run shares a single timestamp. A skipped or failed refresh reports
@@ -201,7 +202,7 @@ The benchmark can run only the models that still have `?` in ability or speed:
 PENDING_ONLY=1 RUN_ID=2026-11-15-pending \
   bun run benchmark:prompts run
 
-# 2. Judge every returned JSON document with Haiku (optional)
+# 2. Judge every returned JSON document with Terra (optional)
 RUN_ID=2026-11-15-pending bun run benchmark:prompts judge
 
 # 3. Save the grades into llm_models
@@ -253,7 +254,7 @@ models so an infrastructure failure is not written as a model failure.
 
 1. The catalog table contains every OpenRouter model with the grade columns.
 2. A catalog refresh runs at most once per 24 hours, inserts new models and
-   retires missing ones.
+   deletes models missing from OpenRouter's list.
 3. The Settings page offers one sortable, filterable table with a real-time
    model-name search and two radio selections, with the documented defaults.
 4. Season/block prompts use `season_model`; week/day and day-to-day prompts use

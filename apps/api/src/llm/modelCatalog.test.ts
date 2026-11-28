@@ -5,6 +5,7 @@ import {
   isDiscouraged,
   speedGrade,
 } from "./modelCatalog.js";
+import { catalogIdsToRemove } from "./modelCatalogUpdate.js";
 import {
   aliasTargetChanged,
   estimateBenchmarkCost,
@@ -160,5 +161,20 @@ describe("aliasTargetChanged", () => {
     expect(aliasTargetChanged("deepseek/deepseek-v4.1-flash-1017", null)).toBe(
       false,
     );
+  });
+});
+
+describe("catalogIdsToRemove", () => {
+  it("removes rows the provider no longer lists", () => {
+    expect(
+      catalogIdsToRemove(
+        ["a/model", "b/model", "c/model"],
+        new Set(["a/model", "c/model"]),
+      ),
+    ).toEqual(["b/model"]);
+  });
+
+  it("removes nothing when the incoming list is empty", () => {
+    expect(catalogIdsToRemove(["a/model"], new Set())).toEqual([]);
   });
 });

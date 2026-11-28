@@ -1,19 +1,10 @@
 import type { LlmModel, LlmModelGrade } from "@killingit/shared";
-import {
-  and,
-  eq,
-  isNotNull,
-  isNull,
-  like,
-  lt,
-  notInArray,
-  or,
-} from "drizzle-orm";
+import { and, eq, inArray, isNotNull, isNull, like, lt, or } from "drizzle-orm";
 import { db } from "../db/index.js";
 import { llmModels, llmModelSync } from "../db/schema.js";
 import { errorMessage } from "../lib/errorMessage.js";
 import { estimateBenchmarkCost, priceGrade } from "./modelCatalogPricing.js";
-import { catalogUpdateFor } from "./modelCatalogUpdate.js";
+import { catalogIdsToRemove, catalogUpdateFor } from "./modelCatalogUpdate.js";
 import { createOpenRouterProvider } from "./openrouter.js";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -117,6 +108,7 @@ export function isDiscouraged(
 export interface CatalogRefreshResult {
   checked: boolean;
   added: number;
+  /** Retained for the existing response shape; a refresh now removes rows. */
   retired: number;
   /** Models whose list price changed and whose cost grade was refreshed. */
   rescored: number;
@@ -124,7 +116,7 @@ export interface CatalogRefreshResult {
   reassigned: number;
   /** Alias models that inherited their target's benchmark data. */
   copied: number;
-  /** Batch-only catalog rows removed from the table. */
+  /** Rows removed because they are batch-only or no longer listed. */
   removed: number;
   error: string | null;
 }
@@ -301,10 +293,10 @@ async function fetchCatalogModels(): Promise<LlmModel[]> {
 
 /**
  * Reconciles the stored catalog with the provider's list: deletes batch-only
- * rows, inserts new models ungraded with a price grade, refreshes existing
- * models, and retires the models that disappeared. Existing benchmark grades
- * are never overwritten, except on an alias whose concrete target moved. Every
- * row written by one refresh shares the same timestamp.
+ * rows and rows the provider no longer lists, inserts new models ungraded with
+ * a price grade, and refreshes existing models. Existing benchmark grades are
+ * never overwritten, except on an alias whose concrete target moved. Every row
+ * written by one refresh shares the same timestamp.
  */
 async function storeCatalogModels(
   models: readonly LlmModel[],
@@ -314,7 +306,7 @@ async function storeCatalogModels(
     .delete(llmModels)
     .where(like(llmModels.id, "%:batch"))
     .returning({ id: llmModels.id });
-  const removed = removedRows.length;
+  let removed = removedRows.length;
   const existing = await db
     .select({
       id: llmModels.id,
@@ -353,22 +345,19 @@ async function storeCatalogModels(
       .where(eq(llmModels.id, model.id));
   }
 
-  let retired = 0;
-  if (incomingIds.size > 0) {
-    const retiredRows = await db
-      .update(llmModels)
-      .set({ retired: true, updatedAt: now })
-      .where(
-        and(
-          eq(llmModels.retired, false),
-          notInArray(llmModels.id, [...incomingIds]),
-        ),
-      )
+  const missingIds = catalogIdsToRemove(
+    existing.map((row) => row.id),
+    incomingIds,
+  );
+  if (missingIds.length > 0) {
+    const missingRows = await db
+      .delete(llmModels)
+      .where(inArray(llmModels.id, missingIds))
       .returning({ id: llmModels.id });
-    retired = retiredRows.length;
+    removed += missingRows.length;
   }
 
-  return { added, retired, rescored, reassigned, removed };
+  return { added, retired: 0, rescored, reassigned, removed };
 }
 
 /**
@@ -400,9 +389,8 @@ async function failCatalogRefresh(err: unknown): Promise<CatalogRefreshResult> {
 /**
  * Checks OpenRouter's catalog at most once every 24 hours. New models are
  * inserted ungraded (`?`) with a cost grade estimated from their list price;
- * models that disappeared are marked retired. Existing grades are never
- * overwritten by a catalog refresh, except on an alias whose concrete target
- * moved.
+ * models that disappeared are removed. Existing grades are never overwritten
+ * by a catalog refresh, except on an alias whose concrete target moved.
  */
 export async function refreshModelCatalog(
   options: { force?: boolean } = {},

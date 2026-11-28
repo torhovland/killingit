@@ -33,7 +33,7 @@ import {
   type PromptRunResult,
 } from "./promptBenchmarkTypes.js";
 
-const JUDGE_MODEL = process.env.JUDGE_MODEL ?? "anthropic/claude-haiku-5.5";
+const JUDGE_MODEL = process.env.JUDGE_MODEL ?? "openai/gpt-6.1-terra";
 const MAX_TOKENS = Number(process.env.MAX_TOKENS ?? 4000);
 const JUDGE_TIMEOUT_MS = 240_000;
 const JUDGE_PASSES = Math.max(

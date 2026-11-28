@@ -211,10 +211,9 @@ goal-steering prompt and stays ungraded.
 
 The judge moves by more than a point between single passes, which is wider than
 the gap between capable models. `JUDGE_PASSES=3` averages three passes per
-prompt (the note comes from the pass closest to the mean), and a stronger
-`JUDGE_MODEL` such as `anthropic/claude-opus-5.5` is materially more stable for
-a small comparison. The default stays one Haiku pass because a full-catalog run
-multiplies the judge spend by the number of passes.
+prompt (the note comes from the pass closest to the mean). The default judge is
+`openai/gpt-6.1-terra`; a full-catalog run keeps one pass because it multiplies
+the judge spend by the number of passes.
 
 Ability bands are A+ at least 10.5, A at least 10.0, B at least 9.5, C at least
 9.0, D at least 8.5, and E above zero. A failed run is F. The Today prompt was

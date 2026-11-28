@@ -44,4 +44,5 @@ now runs two prompts. Ability is the mean of those two scores, with bands A+ at
 least 10.5, A at least 10.0, B at least 9.5, C at least 9.0, D at least 8.5, E
 above zero and F for a failed run. Speed and cost are measured on the revision
 prompt alone. The per-category cap was removed so a weak component cannot
-override the score band.
+override the score band. A catalog refresh now deletes models that are missing
+from OpenRouter's list instead of marking them retired.

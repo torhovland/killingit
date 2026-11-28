@@ -77,7 +77,7 @@ const JUDGE = {
   components: { contract: 1.5, fidelity: 2, design: 2.5 },
   note: "Good.",
   judge: {
-    model: "anthropic/claude-haiku-5.5",
+    model: "openai/gpt-6.1-terra",
     attempts: 1,
     timeMs: 500,
     costUsd: 0.001,

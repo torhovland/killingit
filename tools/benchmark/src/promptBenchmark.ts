@@ -925,7 +925,7 @@ export function parseJudge(value: unknown): {
  * failing component in any prompt still grades the model down.
  */
 /**
- * Averages repeated judge passes for one prompt. A single Haiku pass moves by
+ * Averages repeated judge passes for one prompt. A single Terra pass moves by
  * more than a point between runs, which is wider than the difference between
  * capable models, so a comparison can ask for several passes and score the mean.
  * The note comes from the pass closest to the mean score so the report still

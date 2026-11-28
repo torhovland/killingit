@@ -13,11 +13,9 @@ The daily-update prompt was removed because it did not separate models beyond
 the revision and goal prompts.
 
 The optional `judge` stage scores every response with
-`anthropic/claude-haiku-5.5`. A single Haiku pass moves by more than a point
-between runs, so a small comparison should set `JUDGE_PASSES=3` to average
-three passes, or use a stronger judge such as
-`JUDGE_MODEL=anthropic/claude-opus-5.5`. Both were run for the 2026-11-24
-goal-steering comparison; the strong judge was markedly more stable.
+`openai/gpt-6.1-terra`. A single Terra pass moves by more than a point between
+runs, so a small comparison should set `JUDGE_PASSES=3` to average three passes.
+Opus and Haiku are not used as judges.
 
 Every prompt is built by the app's real prompt builder
 (`buildPlanUpdateMessages`) from fixture athletes, so every rule, contract and
@@ -186,6 +184,6 @@ SKIP_FAILED=1 SKIP_REFRESH=1 RUN_ID=... bun run benchmark:prompts sync-db
 
 `RETRY_FAILED=1` merges the new attempt into the existing prompt result, so the
 recorded time and cost still cover every attempt. `RETRY_FAILED_JUDGES=1`
-replaces a judge entry whose Haiku call returned an empty or unusable response.
+replaces a judge entry whose Terra call returned an empty or unusable response.
 `SKIP_FAILED=1` is deliberate: infrastructure failures must not turn a model
 into an F.
