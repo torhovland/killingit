@@ -243,6 +243,17 @@ describe("LlmSection", () => {
     ).toBeTruthy();
   });
 
+  it("directs a deleted selected model to Settings", async () => {
+    stubCatalog([ALPHA]);
+    render(section(settings({ model: "provider/deleted" })));
+
+    expect(
+      await screen.findByText(
+        "provider/deleted is no longer available. Choose another model before running the coach.",
+      ),
+    ).toBeTruthy();
+  });
+
   it("warns below the table about a discouraged selection", async () => {
     const discouraged = model({
       id: "provider/slow",

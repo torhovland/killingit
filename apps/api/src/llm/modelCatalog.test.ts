@@ -168,13 +168,43 @@ describe("catalogIdsToRemove", () => {
   it("removes rows the provider no longer lists", () => {
     expect(
       catalogIdsToRemove(
-        ["a/model", "b/model", "c/model"],
+        [
+          { id: "a/model", aliasTargetSlug: null },
+          { id: "b/model", aliasTargetSlug: null },
+          { id: "c/model", aliasTargetSlug: null },
+        ],
         new Set(["a/model", "c/model"]),
       ),
     ).toEqual(["b/model"]);
   });
 
+  it("removes meta models whose target was removed or is missing", () => {
+    expect(
+      catalogIdsToRemove(
+        [
+          { id: "a/model", aliasTargetSlug: null },
+          { id: "~a/latest", aliasTargetSlug: "a/model" },
+          { id: "~gone/latest", aliasTargetSlug: "gone/model" },
+          { id: "b/model", aliasTargetSlug: null },
+          { id: "~b/latest", aliasTargetSlug: "b/model" },
+        ],
+        new Set(["a/model"]),
+      ),
+    ).toEqual(["b/model", "~gone/latest", "~b/latest"]);
+  });
+
+  it("removes a meta model with no target", () => {
+    expect(
+      catalogIdsToRemove(
+        [{ id: "~empty/latest", aliasTargetSlug: null }],
+        new Set(["a/model"]),
+      ),
+    ).toEqual(["~empty/latest"]);
+  });
+
   it("removes nothing when the incoming list is empty", () => {
-    expect(catalogIdsToRemove(["a/model"], new Set())).toEqual([]);
+    expect(
+      catalogIdsToRemove([{ id: "a/model", aliasTargetSlug: null }], new Set()),
+    ).toEqual([]);
   });
 });

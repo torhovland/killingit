@@ -18,13 +18,32 @@ interface CatalogIdentity {
   completionPricePerMillion: number | null;
 }
 
-/** IDs the provider no longer lists; an empty incoming list removes nothing. */
+/** The catalog fields needed to decide whether a row must be removed. */
+export interface CatalogRemovalCandidate {
+  id: string;
+  aliasTargetSlug: string | null;
+}
+
+/**
+ * Rows to delete: models the provider no longer lists, plus meta models whose
+ * target was removed or is no longer set. An empty incoming list removes
+ * nothing, so a failed or empty fetch cannot wipe the catalog.
+ */
 export function catalogIdsToRemove(
-  existingIds: readonly string[],
+  existing: readonly CatalogRemovalCandidate[],
   incomingIds: ReadonlySet<string>,
 ): string[] {
   if (incomingIds.size === 0) return [];
-  return existingIds.filter((id) => !incomingIds.has(id));
+  const removed = new Set(
+    existing.filter((row) => !incomingIds.has(row.id)).map((row) => row.id),
+  );
+  for (const row of existing) {
+    if (!row.id.startsWith("~") && row.aliasTargetSlug === null) continue;
+    if (row.aliasTargetSlug === null || !incomingIds.has(row.aliasTargetSlug)) {
+      removed.add(row.id);
+    }
+  }
+  return [...removed];
 }
 
 /** A new catalog row: ungraded, with a price grade until the benchmark runs. */

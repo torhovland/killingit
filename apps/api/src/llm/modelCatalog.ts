@@ -345,10 +345,7 @@ async function storeCatalogModels(
       .where(eq(llmModels.id, model.id));
   }
 
-  const missingIds = catalogIdsToRemove(
-    existing.map((row) => row.id),
-    incomingIds,
-  );
+  const missingIds = catalogIdsToRemove(existing, incomingIds);
   if (missingIds.length > 0) {
     const missingRows = await db
       .delete(llmModels)
@@ -458,17 +455,22 @@ export async function loadModelCatalog(): Promise<CatalogRow[]> {
     .sort((a, b) => a.name.localeCompare(b.name));
 }
 
+export type ModelAvailability = "available" | "retired" | "missing";
+
 /**
- * True when the catalog knows the model and has retired it. A model missing
- * from the catalog is not retired, so a selection made before the catalog
- * existed still runs; a discouraged model is usable, because Settings only
- * warns about it.
+ * Resolves a stored selection against the catalog. A deleted model is missing,
+ * not retired, so the client can direct the athlete to Settings for either.
+ * A discouraged model is still available; Settings only warns about it.
  */
-export async function modelIsRetired(modelId: string): Promise<boolean> {
+export async function modelAvailability(
+  modelId: string,
+): Promise<ModelAvailability> {
   const rows = await db
     .select({ retired: llmModels.retired })
     .from(llmModels)
     .where(eq(llmModels.id, modelId))
     .limit(1);
-  return rows[0]?.retired ?? false;
+  const row = rows[0];
+  if (row === undefined) return "missing";
+  return row.retired ? "retired" : "available";
 }

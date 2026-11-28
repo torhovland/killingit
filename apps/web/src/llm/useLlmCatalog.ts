@@ -85,10 +85,15 @@ export function useLlmCatalog(
 
   const selectedProblem = useMemo(() => {
     if (catalog === null) return null;
-    const selected = catalog.filter(
-      (model) => model.id === seasonModel || model.id === dailyModel,
+    const selected = [seasonModel, dailyModel].filter((id) => id !== "");
+    const missing = selected.find(
+      (id) => !catalog.some((model) => model.id === id),
     );
-    const retired = selected.find((model) => model.retired);
+    if (missing) return `${missing} is no longer available`;
+    const retired = catalog.find(
+      (model) =>
+        (model.id === seasonModel || model.id === dailyModel) && model.retired,
+    );
     if (retired) return `${retired.name} is retired`;
     return null;
   }, [catalog, dailyModel, seasonModel]);
