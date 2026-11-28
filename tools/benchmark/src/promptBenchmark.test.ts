@@ -300,85 +300,6 @@ function validGoalPlan(): Record<string, unknown> {
   };
 }
 
-function validDailyUpdate(): Record<string, unknown> {
-  return {
-    today: benchmarkDaySession("2026-10-30"),
-    tomorrow: benchmarkDaySession("2026-10-31"),
-    week: {
-      startDate: "2026-10-26",
-      focus: "Rebuild.",
-      rationale: "Start of the Atlas build.",
-      estimatedFtpWatts: 220,
-      sessions: WEEK_DATES.map((date, index) =>
-        daySession(date, DAYS[index] ?? "Monday"),
-      ),
-    },
-    diet: { goal: "Reach 18 % body fat.", assessment: "On track." },
-    bodyMetrics: [],
-  };
-}
-
-describe("validatePromptPlan for today", () => {
-  it("accepts the daily-update contract", () => {
-    expect(validatePromptPlan("today", validDailyUpdate())).toEqual([]);
-  });
-
-  it("rejects a wrong date, a wrong tomorrow and extra root keys", () => {
-    const plan = validDailyUpdate();
-    plan.today = benchmarkDaySession("2026-10-31");
-    plan.tomorrow = benchmarkDaySession("2026-11-01");
-    plan.extra = true;
-    const errors = validatePromptPlan("today", plan);
-    expect(errors).toContain("today date must be 2026-10-30");
-    expect(errors).toContain("tomorrow date must be 2026-10-31");
-    expect(errors).toContain("unexpected top-level keys: extra");
-  });
-
-  it("accepts a null tomorrow", () => {
-    const plan = validDailyUpdate();
-    plan.tomorrow = null;
-    expect(validatePromptPlan("today", plan)).toEqual([]);
-  });
-
-  it("requires today to be one of the week's sessions", () => {
-    const plan = validDailyUpdate();
-    const week = plan.week as Record<string, unknown>;
-    week.sessions = WEEK_DATES.map((date, index) =>
-      daySession(
-        date === "2026-10-30" ? "2026-10-29" : date,
-        DAYS[index] ?? "Monday",
-      ),
-    );
-    expect(validatePromptPlan("today", plan)).toContain(
-      "today must be one of the week's sessions",
-    );
-  });
-
-  it("requires exactly seven week sessions", () => {
-    const plan = validDailyUpdate();
-    const week = plan.week as Record<string, unknown>;
-    week.sessions = (week.sessions as unknown[]).slice(0, 6);
-    expect(validatePromptPlan("today", plan)).toContain(
-      "week: sessions must contain exactly seven sessions",
-    );
-  });
-
-  it("allows the optional coach question and model remarks keys", () => {
-    const plan = validDailyUpdate();
-    plan.coachQuestion = "How did it feel?";
-    plan.modelsRemarks = null;
-    expect(validatePromptPlan("today", plan)).toEqual([]);
-  });
-
-  it("rejects an array where the single coach question belongs", () => {
-    const plan = validDailyUpdate();
-    plan.coachQuestion = ["How did it feel?"];
-    expect(validatePromptPlan("today", plan)).toContain(
-      "coachQuestion must be a string or null",
-    );
-  });
-});
-
 describe("validatePromptPlan for the season revision", () => {
   it("accepts the revision contract", () => {
     expect(validatePromptPlan("reviseSeason", validRevisePlan())).toEqual([]);
@@ -655,7 +576,6 @@ describe("combinePromptScores", () => {
   it("averages the scores and keeps the weaker component", () => {
     const combined = combinePromptScores(
       {
-        today: { score: 11.4, components: fullComponents, note: "Strong." },
         reviseSeason: {
           score: 9.2,
           components: { ...fullComponents, design: 1.8 },
@@ -669,11 +589,10 @@ describe("combinePromptScores", () => {
       },
       [],
     );
-    expect(combined.score).toBe(10.4);
+    expect(combined.score).toBe(9.9);
     expect(combined.components.design).toBe(1.8);
     expect(combined.components.contract).toBe(1.5);
     expect(combined.failed).toBe(false);
-    expect(combined.note).toContain("Today plan: Strong.");
     expect(combined.note).toContain("Season revision: Weaker design.");
     expect(combined.note).toContain("Goal steering: Steers the goal.");
   });
@@ -681,7 +600,6 @@ describe("combinePromptScores", () => {
   it("fails when a hard gate fails", () => {
     const combined = combinePromptScores(
       {
-        today: { score: 11.4, components: fullComponents, note: "Strong." },
         reviseSeason: {
           score: 11.2,
           components: fullComponents,
@@ -776,16 +694,6 @@ describe("graded prompt totals", () => {
     totalTimeMs: 600,
     totalCostUsd: 0.6,
     prompts: {
-      today: {
-        prompt: "today",
-        attempts: [],
-        retryNeeded: false,
-        ok: true,
-        totalTimeMs: 100,
-        totalCostUsd: 0.1,
-        plan: {},
-        validationErrors: [],
-      },
       reviseSeason: {
         prompt: "reviseSeason",
         attempts: [],
@@ -809,9 +717,9 @@ describe("graded prompt totals", () => {
     },
   };
 
-  it("excludes the goal prompt from the speed and cost totals", () => {
-    expect(gradedPromptTimeMs(result)).toBe(300);
-    expect(gradedPromptCostUsd(result)).toBeCloseTo(0.3);
+  it("uses the revision prompt for the speed and cost totals", () => {
+    expect(gradedPromptTimeMs(result)).toBe(200);
+    expect(gradedPromptCostUsd(result)).toBeCloseTo(0.2);
   });
 
   it("returns null when a graded prompt is missing", () => {
@@ -911,10 +819,10 @@ describe("extractJson", () => {
 
 describe("prompt validation", () => {
   it("routes each prompt to its contract", () => {
-    expect(validatePromptPlan("today", null)).toContain(
+    expect(validatePromptPlan("reviseSeason", null)).toContain(
       "response is not an object",
     );
-    expect(validatePromptPlan("reviseSeason", null)).toContain(
+    expect(validatePromptPlan("goalSteering", null)).toContain(
       "response is not an object",
     );
   });
@@ -923,12 +831,8 @@ describe("prompt validation", () => {
     expect(isWarningOnlyPromptError("unexpected top-level keys: extra")).toBe(
       true,
     );
-    expect(isWarningOnlyPromptError("missing today object")).toBe(false);
-    const errors = fatalPromptErrors("today", {
-      today: {},
-      tomorrow: null,
-      week: {},
-      bodyMetrics: [],
+    expect(isWarningOnlyPromptError("missing season object")).toBe(false);
+    const errors = fatalPromptErrors("reviseSeason", {
       extra: true,
     });
     expect(errors).not.toContain(

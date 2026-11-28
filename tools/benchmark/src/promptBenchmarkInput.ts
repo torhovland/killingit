@@ -1,9 +1,6 @@
 import { z } from "zod";
 import { PLAN_MAX_TOKENS } from "../../../apps/api/src/llm/planBudget.js";
-import {
-  buildDailyUpdateMessages,
-  buildPlanUpdateMessages,
-} from "../../../apps/api/src/llm/planUpdatePrompt.js";
+import { buildPlanUpdateMessages } from "../../../apps/api/src/llm/planUpdatePrompt.js";
 import {
   attemptLadder,
   type CompletionAttempt,
@@ -27,13 +24,10 @@ import {
   goalSteeringWeekPlan,
 } from "./promptBenchmarkSeasonFixture.js";
 
-/** The day the daily-update benchmark plans for; a Friday in week 2. */
-export const TODAY_BENCHMARK_DATE = "2026-10-30";
-
 /** The day the season revision is requested on; the Sunday of the same week. */
 export const REVISE_SEASON_DATE = "2026-11-01";
 
-/** The Monday of the week both benchmark dates fall inside. */
+/** The Monday of the week the revision falls inside. */
 export const REVISE_WEEK_START = "2026-10-26";
 
 /** The revision request returns exactly these top-level keys. */
@@ -66,18 +60,14 @@ export const GOAL_STEERING_TOP_LEVEL_KEYS = [
 ] as const;
 
 /**
- * The prompts that still define the catalog's speed and cost grades. They are
- * the two calls the app makes on an ordinary day, so a third ability prompt
- * does not make a model look slower or more expensive than the app sees it.
+ * The prompt that defines the catalog's speed and cost grades. The goal
+ * prompt is ability-only, so its extra call does not make a model look slower
+ * or more expensive than the app sees it.
  */
-export const GRADED_BENCHMARK_PROMPT_IDS = ["today", "reviseSeason"] as const;
+export const GRADED_BENCHMARK_PROMPT_IDS = ["reviseSeason"] as const;
 
-/** The ids of the three prompts, as stored in `results.json` and `raw/*.json`. */
-export const benchmarkPromptIdSchema = z.enum([
-  "today",
-  "reviseSeason",
-  "goalSteering",
-]);
+/** The ids of the two prompts, as stored in `results.json` and `raw/*.json`. */
+export const benchmarkPromptIdSchema = z.enum(["reviseSeason", "goalSteering"]);
 
 export type BenchmarkPromptId = z.infer<typeof benchmarkPromptIdSchema>;
 
@@ -89,8 +79,8 @@ export interface BenchmarkPromptDefinition {
 }
 
 /**
- * The three prompts every catalog model answers. They are built by the app's
- * own prompt builders from the fixture athletes, so a rule, contract or context
+ * The two prompts every catalog model answers. They are built by the app's own
+ * prompt builders from the fixture athletes, so a rule, contract or context
  * change reaches the benchmark instead of leaving it on a frozen snapshot.
  *
  * The budget is the app's own plan budget: a benchmark run must give every
@@ -99,7 +89,6 @@ export interface BenchmarkPromptDefinition {
  * The run stage walks the app's whole fallback ladder from that budget.
  */
 export const BENCHMARK_PROMPTS: readonly BenchmarkPromptDefinition[] = [
-  { id: "today", label: "Today plan", maxTokens: PLAN_MAX_TOKENS },
   {
     id: "reviseSeason",
     label: "Season revision",
@@ -114,15 +103,13 @@ export const BENCHMARK_PROMPTS: readonly BenchmarkPromptDefinition[] = [
 
 /**
  * The app's fallback ladder for this prompt, with an optional manual budget
- * override for experiments. `MAX_TOKENS` and `MAX_TOKENS_REVISE` replace the
- * base budget; the reasoning fallbacks and the doubled budget still follow.
+ * override for experiments. `MAX_TOKENS_REVISE` replaces the base budget; the
+ * reasoning fallbacks and the doubled budget still follow.
  */
 export function benchmarkAttempts(
   definition: BenchmarkPromptDefinition,
 ): CompletionAttempt[] {
-  const overrideKey =
-    definition.id === "today" ? "MAX_TOKENS" : "MAX_TOKENS_REVISE";
-  const override = Number(process.env[overrideKey]);
+  const override = Number(process.env.MAX_TOKENS_REVISE);
   const base =
     Number.isFinite(override) && override > 0 ? override : definition.maxTokens;
   return attemptLadder(base);
@@ -143,22 +130,13 @@ export function formatBenchmarkPrompt(
 }
 
 /**
- * The messages sent to a model for one benchmark prompt. The daily-update
- * prompt is the one the app sends when it builds a week's first day; the season
- * revision is the plan-update prompt the app sends when the athlete's goal
- * changes.
+ * The messages sent to a model for one benchmark prompt. The season revision
+ * is the plan-update prompt the app sends when the athlete's goal changes; the
+ * goal-steering refresh is the harder block-and-week update.
  */
 export function buildBenchmarkPromptMessages(
   id: BenchmarkPromptId,
 ): BenchmarkPromptMessage[] {
-  if (id === "today") {
-    return buildDailyUpdateMessages({
-      ...benchmarkPlanContext(TODAY_BENCHMARK_DATE),
-      season: benchmarkSeasonPlan(),
-      block: benchmarkBlockPlan(),
-      week: benchmarkWeekPlan(TODAY_BENCHMARK_DATE),
-    });
-  }
   if (id === "goalSteering") {
     return buildPlanUpdateMessages({
       ...goalSteeringPlanContext(),

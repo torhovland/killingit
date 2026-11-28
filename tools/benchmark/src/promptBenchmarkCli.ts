@@ -17,7 +17,7 @@ const STAGES = [
 const PROMPT_BENCHMARK_HELP = `Usage:
   bun run benchmark:prompts <stage>
 
-Three-prompt model-catalog benchmark. Every prompt is built by the app's real
+Two-prompt model-catalog benchmark. Every prompt is built by the app's real
 prompt builders and called through the app's LlmProvider.
 
 Stages:
@@ -27,7 +27,7 @@ Stages:
               run stage alone produces results, and judging can run later.
   finalize    Recover responses rejected only for a warning-level contract
               issue such as an unexpected extra top-level key.
-  shortlist   Print the top judged models with their today title and judgment.
+  shortlist   Print the top judged models with their revision-day title and judgment.
   sync-db     Refresh the catalog, record the grades and copy aliases.
   report      Render <run-id>.html from results.json and judge-scores.json.
 
@@ -49,10 +49,10 @@ Environment:
   RETRY_FAILED_JUDGES=1        Re-judge unusable judge responses.
   SKIP_FAILED=1                Leave unfinished models at their previous grade.
   SKIP_REFRESH=1               Do not refresh the catalog before recording.
-  JUDGE_MODEL=<id>             Judge model (default anthropic/claude-haiku-5.5).
+  JUDGE_MODEL=<id>             Judge model (default openai/gpt-6.1-terra).
   JUDGE_PASSES=<n>             Judge passes to average (default 1; use 3 for a
                                stable small comparison).
-  MAX_TOKENS, MAX_TOKENS_REVISE, TIMEOUT_MS, LIMIT
+  MAX_TOKENS_REVISE, TIMEOUT_MS, LIMIT
   SCORES_FILE, USE_OVERRIDES=0 Report overrides.
 
 Run directories and reports are git-ignored local output under

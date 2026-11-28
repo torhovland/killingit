@@ -2,7 +2,8 @@ import { decrypt } from "../crypto/credentials.js";
 import { AthleteFacingError } from "../http/errors.js";
 import { withPromptLogging } from "./callLog.js";
 import { llmCredentialsKeyFromEnv } from "./credentials.js";
-import { modelIsRetired } from "./modelCatalog.js";
+import { modelAvailability } from "./modelCatalog.js";
+import { modelChoiceMessage } from "./modelChoice.js";
 import { createOpenRouterProvider, type LlmProvider } from "./openrouter.js";
 import { loadLlmSettings } from "./store.js";
 
@@ -27,10 +28,9 @@ export interface LlmClient {
 }
 
 async function assertModelUsable(model: string, role: "season" | "daily") {
-  if (!(await modelIsRetired(model))) return;
-  throw new LlmModelChoiceError(
-    `Your ${role === "season" ? "season planning" : "day-to-day"} model ${model} is retired. Open Settings and choose another model.`,
-  );
+  const availability = await modelAvailability(model);
+  if (availability === "available") return;
+  throw new LlmModelChoiceError(modelChoiceMessage(model, role, availability));
 }
 
 /**

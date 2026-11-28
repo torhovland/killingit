@@ -36,34 +36,32 @@ constraints all derive from that list.
 
 Ability:
 
-- `A+` score >= 10.6
-- `A` score >= 10.2 (below 10.6)
-- `B` score >= 9.8 (below 10.2)
-- `C` score >= 9.4 (below 9.8)
-- `D` score >= 9.0 (below 9.4)
-- `E` score > 0 (below 9.0)
+- `A+` score >= 10.5
+- `A` score >= 10.0 (below 10.5)
+- `B` score >= 9.5 (below 10.0)
+- `C` score >= 9.0 (below 9.5)
+- `D` score >= 8.5 (below 9.0)
+- `E` score > 0 (below 8.5)
 - `F` failed or unscoreable
 
-The category maxima are contract 1.5, fidelity 2, design 3, rationale 2,
-grounding 2 and detail 2. A category below half its maximum caps the grade at
-`C`; it no longer forces `F`. The bands and the cap were recalibrated from the
-2026-11-24 runs: the judge's run-to-run change is about 1.3 points, which is
-wider than the old 0.2-point bands, and a hard `F` for one weak component turned
-a third of the failing entries into apparent failures.
+Ability is the mean of the season-revision and goal-steering scores. A
+successful run always gets a letter band; the old per-category cap was removed
+when the Today prompt was removed, so a weak rubric component no longer
+overrides the score.
 
-Speed (the sum of the two core benchmark prompts, including retries):
+Speed (the revision prompt, including retries):
 
 - `A+` < 60 s, `A` < 120 s, `B` < 180 s, `C` < 240 s, `D` < 300 s, `E` < 600 s,
   `F` >= 600 s.
 
 The `F` limit matches the app's 300 s completion budget with one retry. The
 goal-steering prompt is excluded from speed and cost, because it adds ability
-coverage rather than an extra call the app makes on an ordinary day. A full
-two-core-prompt answer takes about 166 s at the median, so the old 45 s `A+` cut
-only captured the smallest models and the old 1,200 s `F` limit was never
-reached by the app in practice.
+coverage rather than an extra call the app makes on an ordinary day. The cuts
+are unchanged from the two-prompt calibration, so a model measured on the
+revision prompt alone will look faster than it did on a revision-plus-daily
+pair.
 
-Cost (the measured cost of the two core benchmark prompts):
+Cost (the measured cost of the revision prompt):
 
 - `A+` < $0.015, `A` < $0.04, `B` < $0.10, `C` < $0.15, `D` < $0.35,
   `E` < $2.50, `F` >= $2.50.
@@ -116,15 +114,16 @@ list in the background.
   they call the concrete target and force-copy its result afterwards.
 - New models are inserted with `retired=false`, `discouraged=false`,
   `ability=?`, `speed=?`, and the price grade from their list prices.
-- Models missing from OpenRouter are marked retired.
+- Models missing from OpenRouter are deleted from the catalog. The `retired`
+  flag remains for rows marked by earlier versions or by hand.
 - OpenRouter's batch-only `:batch` routes are never inserted, and any existing
   `:batch` rows are deleted during the refresh. They are asynchronous and
   cannot serve normal chat requests.
 - Existing benchmark grades are never overwritten by a refresh.
 
 A refresh runs in three steps: fetch OpenRouter's list, reconcile the stored
-rows (insert, update, retire), then copy benchmark data, recompute `discouraged`
-and clear the sync error. The per-model insert-or-update decision is the pure
+rows (insert, update, delete), then copy benchmark data, recompute
+`discouraged` and clear the sync error. The per-model insert-or-update decision is the pure
 `catalogUpdateFor` in `apps/api/src/llm/modelCatalogUpdate.ts`, unit-tested
 without a database; `storeCatalogModels` only performs its writes, and every row
 written by one run shares a single timestamp. A skipped or failed refresh reports
@@ -176,17 +175,16 @@ is discouraged and that the athlete should choose another model first.
 
 ### Benchmark upkeep
 
-The prompts benchmark runs three prompts per model: the daily update for
-2026-10-30, a drastic season revision on 2026-11-01, and a goal-steering refresh
-on 2027-07-04 from the full-season test where the 3:10 gravel goal is slipping
-and the stored goal ledger must be revised. All are built by the app's real
-prompt builders from fixture athletes, so a
-rule, contract or context change reaches the benchmark; a snapshot test pins the
-built text, so a prompt change fails the test suite until the snapshot is
-deliberately updated. Ability is the mean of the three judged scores. Ability is
-F when a model never mentions Atlas, leaves block 1 unchanged, or changes block
-1's start date (2026-10-19); speed and cost are the sum of the two core prompt
-runs. The definitions and the fixtures live in
+The prompts benchmark runs two prompts per model: a drastic season revision on
+2026-11-01, and a goal-steering refresh on 2027-07-04 from the full-season test
+where the 3:10 gravel goal is slipping and the stored goal ledger must be
+revised. Both are built by the app's real prompt builders from fixture athletes,
+so a rule, contract or context change reaches the benchmark; a snapshot test
+pins the built text, so a prompt change fails the test suite until the snapshot
+is deliberately updated. Ability is the mean of the two judged scores. Ability
+is F when a model never mentions Atlas, leaves block 1 unchanged, or changes
+block 1's start date (2026-10-19); speed and cost are the revision prompt run.
+The definitions and the fixtures live in
 `tools/benchmark/src/promptBenchmarkInput.ts`,
 `promptBenchmarkFixture.ts` and `promptBenchmarkSeasonFixture.ts`; the scoring
 and the catalog queries and grade
@@ -204,7 +202,7 @@ The benchmark can run only the models that still have `?` in ability or speed:
 PENDING_ONLY=1 RUN_ID=2026-11-15-pending \
   bun run benchmark:prompts run
 
-# 2. Judge every returned JSON document with Haiku (optional)
+# 2. Judge every returned JSON document with Terra (optional)
 RUN_ID=2026-11-15-pending bun run benchmark:prompts judge
 
 # 3. Save the grades into llm_models
@@ -238,8 +236,8 @@ endpoint. `DRY_RUN=1` writes the selection to `models.json` without calling any
 model. The benchmark stages use `BENCHMARK_OPENROUTER_API_KEY`, a dedicated
 key separate from the app's per-account key.
 
-A model that reaches the speed-F limit (`600_000` ms across the two core
-prompts) is stopped and recorded with ability `?` instead of F. It is skipped by
+A model that reaches the speed-F limit (`600_000` ms on the revision prompt) is
+stopped and recorded with ability `?` instead of F. It is skipped by
 the judge and remains ungraded, so a timeout never labels a model as an ability
 failure. The goal-steering prompt is not called for that model.
 The season-revision gate also accepts a `coachQuestion` about Atlas in place of
@@ -256,7 +254,7 @@ models so an infrastructure failure is not written as a model failure.
 
 1. The catalog table contains every OpenRouter model with the grade columns.
 2. A catalog refresh runs at most once per 24 hours, inserts new models and
-   retires missing ones.
+   deletes models missing from OpenRouter's list.
 3. The Settings page offers one sortable, filterable table with a real-time
    model-name search and two radio selections, with the documented defaults.
 4. Season/block prompts use `season_model`; week/day and day-to-day prompts use
@@ -264,12 +262,12 @@ models so an infrastructure failure is not written as a model failure.
 5. A retired selection is refused with a Settings-page message. A discouraged
    selection is allowed and shows a danger warning below the models table.
 6. The benchmark can run only ungraded models and write their grades back.
-7. The benchmark tests each model at the daily-update prompt and the
-   season-revision prompt, sums their time and cost, and grades ability F when
-   the revision omits Atlas, leaves block 1 unchanged, or moves block 1's start
-   date. Both prompts are built by the app's prompt builders from a fixture
-   athlete and pinned by a snapshot test, so they cannot drift from the real
-   prompt.
+7. The benchmark tests each model at the season-revision and goal-steering
+   prompts, uses the revision prompt for speed and cost, and grades ability F
+   when the revision omits Atlas, leaves block 1 unchanged, or moves block 1's
+   start date. Both prompts are built by the app's prompt builders from a
+   fixture athlete and pinned by a snapshot test, so they cannot drift from the
+   real prompt.
 8. The catalog stores prompt and completion list prices, refreshes them no more
    than once every 24 hours, and gives an unbenchmarked model a price grade
    instead of `?` unless its price is variable.

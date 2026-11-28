@@ -5,6 +5,7 @@ import {
   isDiscouraged,
   speedGrade,
 } from "./modelCatalog.js";
+import { catalogIdsToRemove } from "./modelCatalogUpdate.js";
 import {
   aliasTargetChanged,
   estimateBenchmarkCost,
@@ -13,46 +14,27 @@ import {
 } from "./modelCatalogPricing.js";
 
 describe("abilityGrade", () => {
-  const categories = {
-    contract: 1.5,
-    fidelity: 2,
-    design: 3,
-    rationale: 2,
-    grounding: 2,
-    detail: 2,
-  };
-
-  it("maps score bands to letter grades", () => {
-    expect(abilityGrade({ score: 10.6, categories })).toBe("A+");
-    expect(abilityGrade({ score: 10.2, categories })).toBe("A");
-    expect(abilityGrade({ score: 9.8, categories })).toBe("B");
-    expect(abilityGrade({ score: 9.4, categories })).toBe("C");
-    expect(abilityGrade({ score: 9.0, categories })).toBe("D");
-    expect(abilityGrade({ score: 8.9, categories })).toBe("E");
-    expect(abilityGrade({ score: 7.4, categories })).toBe("E");
+  it("maps the revision-plus-goal score bands to letter grades", () => {
+    expect(abilityGrade({ score: 10.6 })).toBe("A+");
+    expect(abilityGrade({ score: 10.5 })).toBe("A+");
+    expect(abilityGrade({ score: 10.4 })).toBe("A");
+    expect(abilityGrade({ score: 10.0 })).toBe("A");
+    expect(abilityGrade({ score: 9.9 })).toBe("B");
+    expect(abilityGrade({ score: 9.5 })).toBe("B");
+    expect(abilityGrade({ score: 9.4 })).toBe("C");
+    expect(abilityGrade({ score: 9.0 })).toBe("C");
+    expect(abilityGrade({ score: 8.9 })).toBe("D");
+    expect(abilityGrade({ score: 8.5 })).toBe("D");
+    expect(abilityGrade({ score: 8.4 })).toBe("E");
+    expect(abilityGrade({ score: 0.1 })).toBe("E");
   });
 
   it("grades a failed run as F", () => {
-    expect(abilityGrade({ score: 12, categories, failed: true })).toBe("F");
-  });
-
-  it("caps a strong run at C when any category is below half", () => {
-    expect(
-      abilityGrade({
-        score: 12,
-        categories: { ...categories, detail: 0.9 },
-      }),
-    ).toBe("C");
-    expect(
-      abilityGrade({
-        score: 9.2,
-        categories: { ...categories, detail: 0.9 },
-      }),
-    ).toBe("D");
+    expect(abilityGrade({ score: 12, failed: true })).toBe("F");
   });
 
   it("does not grade an unbenchmarked model", () => {
-    expect(abilityGrade({ score: null, categories: null })).toBe("F");
+    expect(abilityGrade({ score: null })).toBe("F");
   });
 });
 
@@ -179,5 +161,50 @@ describe("aliasTargetChanged", () => {
     expect(aliasTargetChanged("deepseek/deepseek-v4.1-flash-1017", null)).toBe(
       false,
     );
+  });
+});
+
+describe("catalogIdsToRemove", () => {
+  it("removes rows the provider no longer lists", () => {
+    expect(
+      catalogIdsToRemove(
+        [
+          { id: "a/model", aliasTargetSlug: null },
+          { id: "b/model", aliasTargetSlug: null },
+          { id: "c/model", aliasTargetSlug: null },
+        ],
+        new Set(["a/model", "c/model"]),
+      ),
+    ).toEqual(["b/model"]);
+  });
+
+  it("removes meta models whose target was removed or is missing", () => {
+    expect(
+      catalogIdsToRemove(
+        [
+          { id: "a/model", aliasTargetSlug: null },
+          { id: "~a/latest", aliasTargetSlug: "a/model" },
+          { id: "~gone/latest", aliasTargetSlug: "gone/model" },
+          { id: "b/model", aliasTargetSlug: null },
+          { id: "~b/latest", aliasTargetSlug: "b/model" },
+        ],
+        new Set(["a/model", "~a/latest"]),
+      ),
+    ).toEqual(["~gone/latest", "b/model", "~b/latest"]);
+  });
+
+  it("removes a meta model with no target", () => {
+    expect(
+      catalogIdsToRemove(
+        [{ id: "~empty/latest", aliasTargetSlug: null }],
+        new Set(["a/model"]),
+      ),
+    ).toEqual(["~empty/latest"]);
+  });
+
+  it("removes nothing when the incoming list is empty", () => {
+    expect(
+      catalogIdsToRemove([{ id: "a/model", aliasTargetSlug: null }], new Set()),
+    ).toEqual([]);
   });
 });

@@ -1,37 +1,19 @@
 import type { LlmModel, LlmModelGrade } from "@killingit/shared";
-import {
-  and,
-  eq,
-  isNotNull,
-  isNull,
-  like,
-  lt,
-  notInArray,
-  or,
-} from "drizzle-orm";
+import { and, eq, inArray, isNotNull, isNull, like, lt, or } from "drizzle-orm";
 import { db } from "../db/index.js";
 import { llmModels, llmModelSync } from "../db/schema.js";
 import { errorMessage } from "../lib/errorMessage.js";
 import { estimateBenchmarkCost, priceGrade } from "./modelCatalogPricing.js";
-import { catalogUpdateFor } from "./modelCatalogUpdate.js";
+import { catalogIdsToRemove, catalogUpdateFor } from "./modelCatalogUpdate.js";
 import { createOpenRouterProvider } from "./openrouter.js";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
-/** Category maxima used by the Haiku judge. A category below half is an F. */
-const BENCHMARK_CATEGORY_MAXIMA = {
-  contract: 1.5,
-  fidelity: 2,
-  design: 3,
-  rationale: 2,
-  grounding: 2,
-  detail: 2,
-} as const;
-
 /**
- * Cost bands for the two-prompt benchmark. The cuts are calibrated so the
+ * Cost bands for the revision-prompt benchmark. The cuts are calibrated so the
  * measured cost grades roughly match the list-price grades: about 58% exact
- * and 88% within one grade on the latest run, with the same overall shape.
+ * and 88% within one grade on the latest two-prompt run, with the same overall
+ * shape.
  */
 const COST_GRADE_LIMITS = {
   aPlus: 0.015,
@@ -72,10 +54,9 @@ export function costGrade(costUsd: number | null | undefined): LlmModelGrade {
 }
 
 /**
- * Speed is the sum of both benchmark prompts, including retries. The cuts were
- * recalibrated from the 2026-11-24 runs: a full two-prompt answer takes about
- * 166 s at the median, so the old 45 s A+ cut captured only the smallest free
- * models and the 1,200 s F limit sat far beyond the app's own 300 s budget.
+ * Speed is the revision prompt, including retries. The cuts are unchanged from
+ * the two-prompt calibration, so a model that was graded on a pair of calls now
+ * looks faster on the single graded call.
  */
 export function speedGrade(timeMs: number | null | undefined): LlmModelGrade {
   if (timeMs === null || timeMs === undefined) return "?";
@@ -90,42 +71,26 @@ export function speedGrade(timeMs: number | null | undefined): LlmModelGrade {
 
 export interface AbilityInput {
   score: number | null | undefined;
-  categories?: Record<string, number> | null;
   failed?: boolean;
 }
 
 /**
- * Ability is the benchmark score band. A failed or unscoreable run is F.
+ * Ability is the mean of the season-revision and goal-steering judge scores.
+ * A failed or unscoreable run is F; every successful run gets a letter band.
  *
- * One rubric category below half its maximum caps the grade at C instead of
- * failing the model outright. The old hard F turned an 8.8 plan with one weak
- * fidelity score into an ungraded-looking failure, which is why 44 of the 132
- * judged entries in the 2026-11-24 runs were F for a single component.
- *
- * Score bands: A+ >= 10.6, A >= 10.2, B >= 9.8, C >= 9.4, D >= 9.0, E > 0.
+ * Score bands: A+ >= 10.5, A >= 10.0, B >= 9.5, C >= 9.0, D >= 8.5, E > 0.
  */
 export function abilityGrade({
   score,
-  categories,
   failed = false,
 }: AbilityInput): LlmModelGrade {
   if (failed || score === null || score === undefined || score <= 0) return "F";
-  if (!categories) return "F";
-  let grade: LlmModelGrade;
-  if (score >= 10.6) grade = "A+";
-  else if (score >= 10.2) grade = "A";
-  else if (score >= 9.8) grade = "B";
-  else if (score >= 9.4) grade = "C";
-  else if (score >= 9.0) grade = "D";
-  else grade = "E";
-  const weakCategory = Object.entries(BENCHMARK_CATEGORY_MAXIMA).some(
-    ([key, maximum]) => {
-      const value = categories[key];
-      return value === undefined || value < maximum / 2;
-    },
-  );
-  if (weakCategory && GRADE_ORDER[grade] > GRADE_ORDER.C) return "C";
-  return grade;
+  if (score >= 10.5) return "A+";
+  if (score >= 10.0) return "A";
+  if (score >= 9.5) return "B";
+  if (score >= 9.0) return "C";
+  if (score >= 8.5) return "D";
+  return "E";
 }
 
 export function isDiscouraged(
@@ -143,6 +108,7 @@ export function isDiscouraged(
 export interface CatalogRefreshResult {
   checked: boolean;
   added: number;
+  /** Retained for the existing response shape; a refresh now removes rows. */
   retired: number;
   /** Models whose list price changed and whose cost grade was refreshed. */
   rescored: number;
@@ -150,7 +116,7 @@ export interface CatalogRefreshResult {
   reassigned: number;
   /** Alias models that inherited their target's benchmark data. */
   copied: number;
-  /** Batch-only catalog rows removed from the table. */
+  /** Rows removed because they are batch-only or no longer listed. */
   removed: number;
   error: string | null;
 }
@@ -327,10 +293,10 @@ async function fetchCatalogModels(): Promise<LlmModel[]> {
 
 /**
  * Reconciles the stored catalog with the provider's list: deletes batch-only
- * rows, inserts new models ungraded with a price grade, refreshes existing
- * models, and retires the models that disappeared. Existing benchmark grades
- * are never overwritten, except on an alias whose concrete target moved. Every
- * row written by one refresh shares the same timestamp.
+ * rows and rows the provider no longer lists, inserts new models ungraded with
+ * a price grade, and refreshes existing models. Existing benchmark grades are
+ * never overwritten, except on an alias whose concrete target moved. Every row
+ * written by one refresh shares the same timestamp.
  */
 async function storeCatalogModels(
   models: readonly LlmModel[],
@@ -340,7 +306,7 @@ async function storeCatalogModels(
     .delete(llmModels)
     .where(like(llmModels.id, "%:batch"))
     .returning({ id: llmModels.id });
-  const removed = removedRows.length;
+  let removed = removedRows.length;
   const existing = await db
     .select({
       id: llmModels.id,
@@ -379,22 +345,16 @@ async function storeCatalogModels(
       .where(eq(llmModels.id, model.id));
   }
 
-  let retired = 0;
-  if (incomingIds.size > 0) {
-    const retiredRows = await db
-      .update(llmModels)
-      .set({ retired: true, updatedAt: now })
-      .where(
-        and(
-          eq(llmModels.retired, false),
-          notInArray(llmModels.id, [...incomingIds]),
-        ),
-      )
+  const missingIds = catalogIdsToRemove(existing, incomingIds);
+  if (missingIds.length > 0) {
+    const missingRows = await db
+      .delete(llmModels)
+      .where(inArray(llmModels.id, missingIds))
       .returning({ id: llmModels.id });
-    retired = retiredRows.length;
+    removed += missingRows.length;
   }
 
-  return { added, retired, rescored, reassigned, removed };
+  return { added, retired: 0, rescored, reassigned, removed };
 }
 
 /**
@@ -426,9 +386,8 @@ async function failCatalogRefresh(err: unknown): Promise<CatalogRefreshResult> {
 /**
  * Checks OpenRouter's catalog at most once every 24 hours. New models are
  * inserted ungraded (`?`) with a cost grade estimated from their list price;
- * models that disappeared are marked retired. Existing grades are never
- * overwritten by a catalog refresh, except on an alias whose concrete target
- * moved.
+ * models that disappeared are removed. Existing grades are never overwritten
+ * by a catalog refresh, except on an alias whose concrete target moved.
  */
 export async function refreshModelCatalog(
   options: { force?: boolean } = {},
@@ -496,17 +455,22 @@ export async function loadModelCatalog(): Promise<CatalogRow[]> {
     .sort((a, b) => a.name.localeCompare(b.name));
 }
 
+export type ModelAvailability = "available" | "retired" | "missing";
+
 /**
- * True when the catalog knows the model and has retired it. A model missing
- * from the catalog is not retired, so a selection made before the catalog
- * existed still runs; a discouraged model is usable, because Settings only
- * warns about it.
+ * Resolves a stored selection against the catalog. A deleted model is missing,
+ * not retired, so the client can direct the athlete to Settings for either.
+ * A discouraged model is still available; Settings only warns about it.
  */
-export async function modelIsRetired(modelId: string): Promise<boolean> {
+export async function modelAvailability(
+  modelId: string,
+): Promise<ModelAvailability> {
   const rows = await db
     .select({ retired: llmModels.retired })
     .from(llmModels)
     .where(eq(llmModels.id, modelId))
     .limit(1);
-  return rows[0]?.retired ?? false;
+  const row = rows[0];
+  if (row === undefined) return "missing";
+  return row.retired ? "retired" : "available";
 }

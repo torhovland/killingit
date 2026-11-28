@@ -1,27 +1,26 @@
 # Prompts benchmark
 
-This benchmark sends three prompts to every selected OpenRouter model through
+This benchmark sends two prompts to every selected OpenRouter model through
 the app's `LlmProvider`:
 
-- the daily-update prompt for 2026-10-30, which asks for today's session,
-  tomorrow's session and the current week;
 - the season-revision prompt for 2026-11-01 after the athlete set the Atlas
   Mountain Race on 28 February 2027 as the next goal; and
 - the goal-steering refresh for 2027-07-04 from the full-season test, seven
   weeks before a 3:10 gravel race that is slipping away while the athlete
   completes every session and says they all feel easy.
 
-The optional `judge` stage scores every response with
-`anthropic/claude-haiku-5.5`. A single Haiku pass moves by more than a point
-between runs, so a small comparison should set `JUDGE_PASSES=3` to average
-three passes, or use a stronger judge such as
-`JUDGE_MODEL=anthropic/claude-opus-5.5`. Both were run for the 2026-11-24
-goal-steering comparison; the strong judge was markedly more stable.
+The daily-update prompt was removed because it did not separate models beyond
+the revision and goal prompts.
 
-Every prompt is built by the app's real prompt builders
-(`buildDailyUpdateMessages` and `buildPlanUpdateMessages`) from fixture
-athletes, so every rule, contract and context change reaches the benchmark
-instead of leaving it on a frozen snapshot. The fixtures live in
+The optional `judge` stage scores every response with
+`openai/gpt-6.1-terra`. A single Terra pass moves by more than a point between
+runs, so a small comparison should set `JUDGE_PASSES=3` to average three passes.
+Opus and Haiku are not used as judges.
+
+Every prompt is built by the app's real prompt builder
+(`buildPlanUpdateMessages`) from fixture athletes, so every rule, contract and
+context change reaches the benchmark instead of leaving it on a frozen
+snapshot. The fixtures live in
 `tools/benchmark/src/promptBenchmarkFixture.ts` and
 `tools/benchmark/src/promptBenchmarkSeasonFixture.ts`, and the prompt
 definitions in `tools/benchmark/src/promptBenchmarkInput.ts`. A snapshot test
@@ -40,17 +39,13 @@ and the run, judge, finalize, shortlist, sync-db and report stages — lives in
 the `@killingit/benchmark` workspace (`tools/benchmark/src`). This directory
 holds only the git-ignored run and report artifacts. See ADR 0032.
 
-Each model's score is the mean of its three judged scores (each out of 12.5),
-and every component keeps the weakest prompt, so a category failure in any
-prompt caps the grade at C. Speed and cost are the sums of the two core app
-prompt runs (today and season revision), including retries, so the extra
-goal-steering ability call does not make a model look slower or more expensive
-than the app sees it.
+Each model's score is the mean of its two judged scores (each out of 12.5), and
+every component keeps the weaker prompt. Speed and cost use the season-revision
+prompt alone, including retries, so the extra goal-steering ability call does
+not make a model look slower or more expensive than the app sees it.
 
-The ability bands were calibrated on the two core prompts. The goal-steering
-task is newer and harder, so the three-prompt mean sits lower; compare raw
-scores and relative order until a full catalog run recalibrates the bands. Do
-not sync the catalog on the old bands after adding this prompt.
+The ability bands are A+ at least 10.5, A at least 10.0, B at least 9.5, C at
+least 9.0, D at least 8.5, and E above zero. A failed run is F.
 
 The season revision also has three hard gates. Ability is F when a model:
 
@@ -80,8 +75,8 @@ when it is embedded in a productive workout and answers a question the plan
 depends on. There is no mechanical gate on this prompt: it is a coaching
 judgement, not a keyword.
 
-A model that reaches the speed-F limit (10 minutes across the two core prompts)
-is stopped, skipped by the judge, and recorded with ability `?` rather than F, so
+A model that reaches the speed-F limit (10 minutes on the revision prompt) is
+stopped, skipped by the judge, and recorded with ability `?` rather than F, so
 it stays ungraded instead of being labelled a failure. It is not asked the
 goal-steering prompt.
 
@@ -189,6 +184,6 @@ SKIP_FAILED=1 SKIP_REFRESH=1 RUN_ID=... bun run benchmark:prompts sync-db
 
 `RETRY_FAILED=1` merges the new attempt into the existing prompt result, so the
 recorded time and cost still cover every attempt. `RETRY_FAILED_JUDGES=1`
-replaces a judge entry whose Haiku call returned an empty or unusable response.
+replaces a judge entry whose Terra call returned an empty or unusable response.
 `SKIP_FAILED=1` is deliberate: infrastructure failures must not turn a model
 into an F.

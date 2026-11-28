@@ -15,7 +15,7 @@ function display(value: unknown): string {
     : "";
 }
 
-/** The day object the daily-update prompt returned, when it is usable. */
+/** The today object the season revision returned, when it is usable. */
 function dayFromPlan(plan: unknown): Record<string, unknown> | null {
   if (typeof plan !== "object" || plan === null || !("today" in plan)) {
     return null;
@@ -46,7 +46,7 @@ export async function runPromptBenchmarkShortlistStage(): Promise<void> {
 
   for (const score of ranked.slice(0, limit)) {
     const result = byId.get(score.id);
-    const today = dayFromPlan(result?.prompts.today?.plan);
+    const today = dayFromPlan(result?.prompts.reviseSeason?.plan);
     console.log(
       `\n=== ${score.score.toFixed(1)} ${score.id} | ${((result?.totalTimeMs ?? 0) / 1000).toFixed(1)}s $${(result?.totalCostUsd ?? 0).toFixed(4)} | ${JSON.stringify(score.components)} | gates ${score.gates?.failures.length ?? 0}`,
     );

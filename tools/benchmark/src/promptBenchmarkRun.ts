@@ -53,8 +53,8 @@ import {
 const PROVIDER_REQUEST_TIMEOUT_MS = 240_000;
 
 /**
- * Extra wall-clock room for the goal-steering prompt after the two core prompts
- * have had their full speed-F budget. Speed is still graded on the core prompts
+ * Extra wall-clock room for the goal-steering prompt after the revision prompt
+ * has had its full speed-F budget. Speed is still graded on the revision prompt
  * alone, so this prompt can add ability coverage without making a model look
  * slower than the app sees it.
  */
@@ -189,9 +189,7 @@ function skippedPromptResult(prompt: BenchmarkPromptId): PromptRunResult {
     totalTimeMs: 0,
     totalCostUsd: 0,
     plan: null,
-    validationErrors: [
-      "not run: the two graded prompts reached the speed-F limit",
-    ],
+    validationErrors: ["not run: the graded prompt reached the speed-F limit"],
   };
 }
 
@@ -205,9 +203,9 @@ async function runModel(
 ): Promise<PromptModelResult> {
   const requestedAt = new Date().toISOString();
   const started = performance.now();
-  // The two graded prompts keep their full speed-F budget. The goal-steering
-  // prompt gets a separate budget after it, and is skipped when the graded
-  // prompts have already used the speed-F limit.
+  // The graded revision prompt keeps its full speed-F budget. The
+  // goal-steering prompt gets a separate budget after it, and is skipped when
+  // the graded prompt has already used the speed-F limit.
   const gradedDeadline = started + SPEED_F_LIMIT_MS;
   const goalDeadline = gradedDeadline + GOAL_STEERING_TIME_BUDGET_MS;
   const results = {} as Record<BenchmarkPromptId, PromptRunResult>;

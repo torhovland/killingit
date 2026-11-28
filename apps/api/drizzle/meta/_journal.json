@@ -414,6 +414,48 @@
       "when": 1795547441959,
       "tag": "0058_recalibrate_model_grades_2026_11_24",
       "breakpoints": true
+    },
+    {
+      "idx": 59,
+      "version": "7",
+      "when": 1795795108196,
+      "tag": "0059_grade_benchmark_models_2026_11_27",
+      "breakpoints": true
+    },
+    {
+      "idx": 60,
+      "version": "7",
+      "when": 1795822905536,
+      "tag": "0060_regrade_revision_goal_2026_11_28",
+      "breakpoints": true
+    },
+    {
+      "idx": 61,
+      "version": "7",
+      "when": 1795855845371,
+      "tag": "0061_ungrade_stale_expensive_models_2026_11_28",
+      "breakpoints": true
+    },
+    {
+      "idx": 62,
+      "version": "7",
+      "when": 1795857054482,
+      "tag": "0062_grade_stale_rerun_2026_11_28",
+      "breakpoints": true
+    },
+    {
+      "idx": 63,
+      "version": "7",
+      "when": 1795862918317,
+      "tag": "0063_grade_cost_a_rerun_2026_11_28",
+      "breakpoints": true
+    },
+    {
+      "idx": 64,
+      "version": "7",
+      "when": 1795864704534,
+      "tag": "0064_grade_c_or_better_rerun_2026_11_28",
+      "breakpoints": true
     }
   ]
 }

@@ -17,11 +17,11 @@
   "dependencies": {
     "@hono/zod-validator": "^0.9.1",
     "@killingit/shared": "workspace:*",
-    "@sentry/bun": "^11.19.0",
-    "@sentry/hono": "^11.19.0",
+    "@sentry/bun": "^11.20.0",
+    "@sentry/hono": "^11.20.0",
     "drizzle-orm": "^0.45.4",
     "hono": "^4.13.23",
-    "jimp": "^2.2.0",
+    "jimp": "^2.2.1",
     "jose": "^6.2.18",
     "pg": "^8.23.1",
     "zod": "^4.6.7"
