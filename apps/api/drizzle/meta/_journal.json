@@ -428,6 +428,20 @@
       "when": 1795822905536,
       "tag": "0060_regrade_revision_goal_2026_11_28",
       "breakpoints": true
+    },
+    {
+      "idx": 61,
+      "version": "7",
+      "when": 1795855845371,
+      "tag": "0061_ungrade_stale_expensive_models_2026_11_28",
+      "breakpoints": true
+    },
+    {
+      "idx": 62,
+      "version": "7",
+      "when": 1795857054482,
+      "tag": "0062_grade_stale_rerun_2026_11_28",
+      "breakpoints": true
     }
   ]
 }
